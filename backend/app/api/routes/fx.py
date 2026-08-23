@@ -4,7 +4,7 @@ from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, ConfigDict
 
 from app.services.fx import FxRateUnavailableError, refresh_fx_rates
-ConfigDict
+
 router = APIRouter(tags=["fx"])
 
 
