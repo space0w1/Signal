@@ -24,7 +24,9 @@ export function StockPnLCard({ ticker, holding }: Props) {
       <div className="mt-1 text-2xl font-semibold text-gray-900">
         {formatMoney(holding.price, holding.currency)}
       </div>
-      <div className="mt-0.5 text-xs text-gray-400">{holding.quantity} sh held</div>
+      <div className="mt-0.5 text-xs text-gray-400">
+        {holding.quantity} sh @ avg {formatMoney(holding.avg_cost, holding.currency)}
+      </div>
 
       <div className="mt-3 grid grid-cols-2 gap-3 text-sm">
         <div>

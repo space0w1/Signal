@@ -7,6 +7,7 @@ export interface HoldingPnL {
   quantity: number;
   price: number;
   price_date: string;
+  avg_cost: number;
   value_sgd: number;
   cost_sgd: number;
   unrealized_pnl_amount: number;

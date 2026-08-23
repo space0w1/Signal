@@ -17,6 +17,7 @@ class HoldingPnLResponse(BaseModel):
     quantity: float
     price: float
     price_date: date
+    avg_cost: float
     value_sgd: float
     cost_sgd: float
     unrealized_pnl_amount: float

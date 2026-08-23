@@ -38,6 +38,7 @@ class HoldingValuation:
     quantity: float
     price: float
     price_date: date
+    avg_cost: float  # native currency, per-share — directly comparable to `price`
     value_sgd: float
     cost_sgd: float
     unrealized_pnl_amount: float
@@ -97,6 +98,7 @@ def get_portfolio(as_of: date | None = None) -> PortfolioValuation:
         unrealized_pnl_amount = value_sgd - cost_sgd
         unrealized_pnl_pct = (unrealized_pnl_amount / cost_sgd * 100) if cost_sgd else 0.0
         realized_pnl_sgd = replay.realized_pnl * fx_rate
+        avg_cost = (replay.cost_basis / replay.quantity) if replay.quantity else 0.0
 
         valuations.append(
             HoldingValuation(
@@ -106,6 +108,7 @@ def get_portfolio(as_of: date | None = None) -> PortfolioValuation:
                 quantity=replay.quantity,
                 price=price_row.close_price,
                 price_date=price_row.date,
+                avg_cost=avg_cost,
                 value_sgd=value_sgd,
                 cost_sgd=cost_sgd,
                 unrealized_pnl_amount=unrealized_pnl_amount,
