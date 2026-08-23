@@ -2,6 +2,7 @@ from datetime import date
 
 import yfinance as yf
 
+from app.db import database
 from app.models import FxRate
 
 FX_PAIRS = ("USDSGD", "HKDSGD")
@@ -35,3 +36,30 @@ def refresh_fx_rates() -> list[FxRate]:
         ).execute()
         rows.append(FxRate.get(FxRate.date == today, FxRate.currency_pair == pair))
     return rows
+
+
+def backfill_fx_rates() -> dict[str, int]:
+    """One-time 5yr historical backfill for both tracked FX pairs, so
+    past-date portfolio queries have a rate to convert with — refresh_fx_rates()
+    alone only ever adds today's row. Returns rows inserted per pair."""
+    rows_inserted: dict[str, int] = {}
+    for pair in FX_PAIRS:
+        ticker = f"{pair}=X"
+        hist = yf.Ticker(ticker).history(period="5y")
+
+        if hist.empty:
+            raise FxRateUnavailableError(f"No historical FX data found for '{pair}'")
+
+        rows = [
+            {"date": index.date(), "currency_pair": pair, "rate": float(row["Close"])}
+            for index, row in hist.iterrows()
+        ]
+
+        with database.atomic():
+            for batch_start in range(0, len(rows), 500):
+                batch = rows[batch_start : batch_start + 500]
+                FxRate.insert_many(batch).on_conflict_ignore().execute()
+
+        rows_inserted[pair] = len(rows)
+
+    return rows_inserted

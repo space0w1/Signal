@@ -56,6 +56,7 @@ Bound to your Tailscale interface only. No auth (single user, Tailscale gates ac
 | Method | Path | Body / Query | Effect |
 |---|---|---|---|
 | POST | `/api/fx-rates/refresh` | — | Fetches today's spot USD→SGD and HKD→SGD rates (yfinance `USDSGD=X` / `HKDSGD=X`) and upserts them into `fx_rates`. This is what the nightly cron (README section "Nightly Schedule") calls; safe to call more than once a day — re-running just overwrites today's row. Fails with 502 if yfinance has no rate for a pair. |
+| POST | `/api/fx-rates/backfill` | — | One-time 5yr historical backfill for both FX pairs, so past-date `/api/portfolio` queries have a rate to convert non-SGD holdings with (`refresh` alone only ever adds today's row). Fails with 502 if yfinance has no historical data for a pair. |
 
 ---
 
