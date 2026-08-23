@@ -18,21 +18,22 @@ created_at TIMESTAMP NOT NULL DEFAULT now()
 
 -- ============================================================
 -- holdings
--- One row per ticker per user. total_quantity/total_cost are a
--- CACHE — SUM(purchases.quantity) / SUM(purchases.quantity*price)
--- for this holding's current active window — recomputed on every
--- write to `purchases`, never incremented directly. The `purchases`
--- table below is the source of truth; this cache exists so "current
--- totals" don't require an aggregate query on every read.
+-- One row per ticker per user. total_quantity/total_cost/realized_pnl
+-- are a CACHE — derived by replaying this holding's `transactions`
+-- (the source of truth) in chronological order using the average-
+-- cost method — recomputed on every write, never mutated directly.
+-- This cache exists so "current totals" don't require a replay on
+-- every read.
 --
--- Soft-delete (section 2.9): removing a stock sets is_active=false
--- and stamps removed_date, rather than deleting the row. This
--- keeps past date-picker snapshots (section 2.8) honest — the
--- holding still existed on any date before removed_date. Re-adding
--- a removed ticker resets date_added to today, starting a fresh
--- window — purchases from the earlier stint are excluded from the
--- cache (and from point-in-time queries) by the date_added bound,
--- not by deleting them.
+-- Soft-delete (section 2.9): removing a stock — explicitly, or
+-- automatically once a sell brings total_quantity to zero — sets
+-- is_active=false and stamps removed_date, rather than deleting the
+-- row. This keeps past date-picker snapshots (section 2.8) honest —
+-- the holding still existed on any date before removed_date.
+-- Re-adding a removed ticker resets date_added to today, starting a
+-- fresh window — transactions from the earlier stint are excluded
+-- from the cache (and from point-in-time queries) by the date_added
+-- bound, not by deleting them.
 -- ============================================================
 CREATE TABLE holdings (
 id             SERIAL PRIMARY KEY,
@@ -41,8 +42,9 @@ ticker         TEXT NOT NULL,               -- e.g. 'AAPL', '0700.HK', 'D05.SI'
 exchange       TEXT NOT NULL,               -- 'US' | 'HK' | 'SG'
 currency       TEXT NOT NULL,               -- 'USD' | 'HKD' | 'SGD'
 total_quantity DOUBLE PRECISION NOT NULL,   -- cache: shares held in the current active window
-total_cost     DOUBLE PRECISION NOT NULL,   -- cache: cost basis in the current active window, native currency
-date_added     DATE NOT NULL,               -- date of first purchase in the current active window
+total_cost     DOUBLE PRECISION NOT NULL,   -- cache: cost basis of shares still held, native currency
+realized_pnl   DOUBLE PRECISION NOT NULL DEFAULT 0, -- cache: cumulative gain/loss from sells in the current window, native currency
+date_added     DATE NOT NULL,               -- date of first transaction in the current active window
 is_active      BOOLEAN NOT NULL DEFAULT TRUE, -- soft-delete flag: true = currently held, false = removed
 removed_date   DATE,                        -- date soft-deleted; NULL while active
 UNIQUE (user_id, ticker)
@@ -51,24 +53,30 @@ UNIQUE (user_id, ticker)
 CREATE INDEX idx_holdings_active ON holdings (user_id, is_active);
 
 -- ============================================================
--- purchases
--- One row per buy — the source of truth for cost basis. Lets a
--- past-date portfolio query (section 2.8) replay only the
--- purchases that had happened by that date, instead of applying
--- the holding's current (possibly later, larger) totals backward
--- in time. purchase_date is the date the buy was entered into the
--- tracker (section 2.1 assumption: it doesn't need to match the
--- real-world trade date, since qty/price are user-input either way).
+-- transactions
+-- One row per buy or sell — the source of truth for cost basis and
+-- PnL. Lets a past-date portfolio query (section 2.8) replay only
+-- the transactions that had happened by that date, instead of
+-- applying the holding's current (possibly later, larger) totals
+-- backward in time. Uses the average-cost method: a sell's
+-- cost-basis reduction is based on the average cost immediately
+-- before it (not the sell price — that only determines the
+-- realized gain/loss on that sale), so replaying requires
+-- chronological order, not a simple SUM. transaction_date is the
+-- date the buy/sell was entered into the tracker (section 2.1
+-- assumption: it doesn't need to match the real-world trade date,
+-- since qty/price are user-input either way).
 -- ============================================================
-CREATE TABLE purchases (
-id            SERIAL PRIMARY KEY,
-holding_id    INTEGER NOT NULL REFERENCES holdings(id),
-quantity      DOUBLE PRECISION NOT NULL,
-price         DOUBLE PRECISION NOT NULL,   -- per-share, native currency
-purchase_date DATE NOT NULL
+CREATE TABLE transactions (
+id               SERIAL PRIMARY KEY,
+holding_id       INTEGER NOT NULL REFERENCES holdings(id),
+type             TEXT NOT NULL,             -- 'buy' | 'sell'
+quantity         DOUBLE PRECISION NOT NULL, -- always positive; type determines direction
+price            DOUBLE PRECISION NOT NULL, -- per-share, native currency
+transaction_date DATE NOT NULL
 );
 
-CREATE INDEX idx_purchases_holding_date ON purchases (holding_id, purchase_date);
+CREATE INDEX idx_transactions_holding_date ON transactions (holding_id, transaction_date);
 
 -- ============================================================
 -- price_history

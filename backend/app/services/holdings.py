@@ -1,9 +1,9 @@
+from dataclasses import dataclass
 from datetime import date
 
-from peewee import fn
-
-from app.models import Holding, Purchase, PriceHistory, User
+from app.models import Holding, PriceHistory, Transaction, User
 from app.services.market_data import backfill_price_history, currency_for_region
+from app.services.transactions import refresh_holding_cache
 
 DEFAULT_USER_ID = 1
 
@@ -12,29 +12,19 @@ class RegionMismatchError(Exception):
     pass
 
 
+class HoldingNotFoundError(Exception):
+    pass
+
+
+class InsufficientQuantityError(Exception):
+    pass
+
+
 def get_default_user() -> User:
     """Single-user app today (README: 'Zero-Authentication Model') — everything
     is still keyed by user_id so real multi-user support later is additive."""
     user, _ = User.get_or_create(id=DEFAULT_USER_ID)
     return user
-
-
-def _recompute_totals(holding: Holding) -> None:
-    """Refreshes the total_quantity/total_cost cache from `purchases` —
-    the source of truth — bounded to the holding's current active window
-    (purchases from an earlier stint, before a soft-delete, are excluded)."""
-    agg = (
-        Purchase.select(
-            fn.SUM(Purchase.quantity).alias("qty"),
-            fn.SUM(Purchase.quantity * Purchase.price).alias("cost"),
-        )
-        .where(Purchase.holding == holding, Purchase.purchase_date >= holding.date_added)
-        .dicts()
-        .get()
-    )
-    holding.total_quantity = agg["qty"] or 0
-    holding.total_cost = agg["cost"] or 0
-    holding.save()
 
 
 def add_holding(ticker: str, qty: float, cost: float, region: str) -> Holding:
@@ -68,14 +58,46 @@ def add_holding(ticker: str, qty: float, cost: float, region: str) -> Holding:
         )
     elif not holding.is_active:
         # Reactivating a previously soft-deleted position starts a fresh
-        # window — purchases from the earlier stint stay in the table but
+        # window — transactions from the earlier stint stay in the table but
         # are excluded from the cache/point-in-time queries by date_added.
         holding.date_added = today
         holding.is_active = True
         holding.removed_date = None
         holding.save()
 
-    Purchase.create(holding=holding, quantity=qty, price=cost, purchase_date=today)
-    _recompute_totals(holding)
+    Transaction.create(holding=holding, type="buy", quantity=qty, price=cost, transaction_date=today)
+    refresh_holding_cache(holding)
 
     return holding
+
+
+@dataclass
+class SaleResult:
+    holding: Holding
+    realized_pnl: float  # native currency, gain/loss from this sale only
+
+
+def sell_holding(ticker: str, qty: float, price: float) -> SaleResult:
+    user = get_default_user()
+    holding = Holding.get_or_none(Holding.user == user, Holding.ticker == ticker, Holding.is_active == True)  # noqa: E712
+    if holding is None:
+        raise HoldingNotFoundError(f"No active holding for '{ticker}'")
+
+    if qty > holding.total_quantity + 1e-9:
+        raise InsufficientQuantityError(
+            f"Cannot sell {qty} shares of '{ticker}', only {holding.total_quantity} held"
+        )
+
+    avg_cost = (holding.total_cost / holding.total_quantity) if holding.total_quantity else 0.0
+    sale_realized_pnl = qty * (price - avg_cost)
+
+    today = date.today()
+    Transaction.create(holding=holding, type="sell", quantity=qty, price=price, transaction_date=today)
+    refresh_holding_cache(holding)
+
+    if holding.total_quantity <= 1e-9:
+        holding.is_active = False
+        holding.removed_date = today
+        holding.save()
+
+    return SaleResult(holding=holding, realized_pnl=sale_realized_pnl)

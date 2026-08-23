@@ -19,8 +19,9 @@ class HoldingPnLResponse(BaseModel):
     price_date: date
     value_sgd: float
     cost_sgd: float
-    pnl_amount: float
-    pnl_pct: float
+    unrealized_pnl_amount: float
+    unrealized_pnl_pct: float
+    realized_pnl_sgd: float
 
 
 class PortfolioResponse(BaseModel):
@@ -29,8 +30,9 @@ class PortfolioResponse(BaseModel):
     date: date
     total_value_sgd: float
     total_cost_sgd: float
-    pnl_amount: float
-    pnl_pct: float
+    total_unrealized_pnl_amount: float
+    total_unrealized_pnl_pct: float
+    total_realized_pnl_sgd: float
     holdings: list[HoldingPnLResponse]
 
 

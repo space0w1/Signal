@@ -1,31 +1,9 @@
 from dataclasses import dataclass
 from datetime import date
 
-from peewee import fn
-
-from app.models import FxRate, Holding, PriceHistory, Purchase
+from app.models import FxRate, Holding, PriceHistory
 from app.services.holdings import get_default_user
-
-
-def _quantity_and_cost_as_of(holding: Holding, as_of: date) -> tuple[float, float]:
-    """Replays purchases up to as_of (bounded by the holding's current active
-    window) instead of using the holding's current totals — so a past date
-    reflects what was actually owned then, not later purchases applied
-    backward in time."""
-    agg = (
-        Purchase.select(
-            fn.SUM(Purchase.quantity).alias("qty"),
-            fn.SUM(Purchase.quantity * Purchase.price).alias("cost"),
-        )
-        .where(
-            Purchase.holding == holding,
-            Purchase.purchase_date >= holding.date_added,
-            Purchase.purchase_date <= as_of,
-        )
-        .dicts()
-        .get()
-    )
-    return agg["qty"] or 0, agg["cost"] or 0
+from app.services.transactions import replay_transactions
 
 
 def _latest_price(ticker: str, as_of: date) -> PriceHistory | None:
@@ -62,8 +40,9 @@ class HoldingValuation:
     price_date: date
     value_sgd: float
     cost_sgd: float
-    pnl_amount: float
-    pnl_pct: float
+    unrealized_pnl_amount: float
+    unrealized_pnl_pct: float
+    realized_pnl_sgd: float
 
 
 @dataclass
@@ -71,18 +50,21 @@ class PortfolioValuation:
     date: date
     total_value_sgd: float
     total_cost_sgd: float
-    pnl_amount: float
-    pnl_pct: float
+    total_unrealized_pnl_amount: float
+    total_unrealized_pnl_pct: float
+    total_realized_pnl_sgd: float
     holdings: list[HoldingValuation]
 
 
 def get_portfolio(as_of: date | None = None) -> PortfolioValuation:
     """Values the portfolio as of as_of (default today) using whatever price
-    and FX data was actually true on that date — not today's. Cost basis is
-    assumed constant across a holding's whole active window (see
-    docs/database.md), and is converted to SGD using the same as-of FX rate
-    as the current value, since the app doesn't track the FX rate at the
-    time of each individual purchase.
+    and FX data was actually true on that date — not today's. Quantity, cost
+    basis, and realized PnL are all reconstructed by replaying transactions
+    up to as_of (see services/transactions.py), not read from the holding's
+    current cache, so a past snapshot reflects only what had happened by
+    then. Realized PnL is converted to SGD using the same as-of FX rate as
+    everything else, since the app doesn't track the FX rate at the time of
+    each individual transaction.
     """
     as_of = as_of or date.today()
     user = get_default_user()
@@ -90,7 +72,10 @@ def get_portfolio(as_of: date | None = None) -> PortfolioValuation:
     active_holdings = Holding.select().where(
         Holding.user == user,
         Holding.date_added <= as_of,
-        Holding.removed_date.is_null(True) | (Holding.removed_date > as_of),
+        # >= not >: the removal day itself should still show the position
+        # (typically at zero quantity), since that's the day its closing
+        # sale's realized PnL happened — excluding it would hide that gain.
+        Holding.removed_date.is_null(True) | (Holding.removed_date >= as_of),
     )
 
     valuations: list[HoldingValuation] = []
@@ -103,42 +88,46 @@ def get_portfolio(as_of: date | None = None) -> PortfolioValuation:
         if fx_rate is None:
             continue  # no fx data available on/before this date yet
 
-        quantity, cost_native = _quantity_and_cost_as_of(holding, as_of)
-        if quantity == 0:
-            continue  # no purchases had happened yet as of this date
+        replay = replay_transactions(holding, as_of)
+        if replay.quantity == 0 and replay.realized_pnl == 0:
+            continue  # nothing owned and nothing sold as of this date
 
-        value_sgd = quantity * price_row.close_price * fx_rate
-        cost_sgd = cost_native * fx_rate
-        pnl_amount = value_sgd - cost_sgd
-        pnl_pct = (pnl_amount / cost_sgd * 100) if cost_sgd else 0.0
+        value_sgd = replay.quantity * price_row.close_price * fx_rate
+        cost_sgd = replay.cost_basis * fx_rate
+        unrealized_pnl_amount = value_sgd - cost_sgd
+        unrealized_pnl_pct = (unrealized_pnl_amount / cost_sgd * 100) if cost_sgd else 0.0
+        realized_pnl_sgd = replay.realized_pnl * fx_rate
 
         valuations.append(
             HoldingValuation(
                 ticker=holding.ticker,
                 exchange=holding.exchange,
                 currency=holding.currency,
-                quantity=quantity,
+                quantity=replay.quantity,
                 price=price_row.close_price,
                 price_date=price_row.date,
                 value_sgd=value_sgd,
                 cost_sgd=cost_sgd,
-                pnl_amount=pnl_amount,
-                pnl_pct=pnl_pct,
+                unrealized_pnl_amount=unrealized_pnl_amount,
+                unrealized_pnl_pct=unrealized_pnl_pct,
+                realized_pnl_sgd=realized_pnl_sgd,
             )
         )
 
-    valuations.sort(key=lambda v: v.pnl_amount, reverse=True)
+    valuations.sort(key=lambda v: v.unrealized_pnl_amount + v.realized_pnl_sgd, reverse=True)
 
     total_value_sgd = sum(v.value_sgd for v in valuations)
     total_cost_sgd = sum(v.cost_sgd for v in valuations)
-    total_pnl = total_value_sgd - total_cost_sgd
-    total_pnl_pct = (total_pnl / total_cost_sgd * 100) if total_cost_sgd else 0.0
+    total_unrealized = total_value_sgd - total_cost_sgd
+    total_unrealized_pct = (total_unrealized / total_cost_sgd * 100) if total_cost_sgd else 0.0
+    total_realized_sgd = sum(v.realized_pnl_sgd for v in valuations)
 
     return PortfolioValuation(
         date=as_of,
         total_value_sgd=total_value_sgd,
         total_cost_sgd=total_cost_sgd,
-        pnl_amount=total_pnl,
-        pnl_pct=total_pnl_pct,
+        total_unrealized_pnl_amount=total_unrealized,
+        total_unrealized_pnl_pct=total_unrealized_pct,
+        total_realized_pnl_sgd=total_realized_sgd,
         holdings=valuations,
     )

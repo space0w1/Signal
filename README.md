@@ -36,7 +36,7 @@ A self-hosted, single-page portfolio dashboard built for multi-market stock trac
 ### 2. Graph & Performance Visualizer
 * **Portfolio Mode**: Toggle between total aggregate SGD value (5-year view) or overlaid normalized percentage returns across all active holdings.
 * **Individual Stock Mode**: Isolated historical price line for the selected ticker.
-* **Cost Basis Tracking**: Every purchase is recorded individually (quantity, price, date). Quantity and average cost are a quantity-weighted derivation over purchases—computed per query date, so a past snapshot reflects only the purchases that had happened by then, not later ones applied backward.
+* **Cost Basis Tracking**: Every buy and sell is recorded individually (type, quantity, price, date), using the average-cost method—a sell's cost-basis reduction is based on the average cost immediately before it, not the sale price, which only determines that sale's realized gain/loss. Quantity, cost basis, and realized PnL are all computed per query date by replaying transactions in order, so a past snapshot reflects only what had happened by then, not later transactions applied backward.
 
 ### 3. AI Summary Engine
 * **Cron Generation**: Runs automatically every night post-market close.
@@ -50,7 +50,7 @@ A self-hosted, single-page portfolio dashboard built for multi-market stock trac
 * **View Stocks Panel** *(Portfolio Mode)*: Sortable list of held positions ranked from highest to lowest PnL.
 * **Modify Portfolio Modal**:
     * *Add Holding*: Enter symbol, region (US/HK/SG), quantity, and cost price (triggers immediate 5-year historical backfill for a brand-new ticker).
-    * *Remove Holding*: Soft-deletes positions to keep current views clean while preserving historical accuracy for past snapshots.
+    * *Sell Holding*: Enter quantity and sale price—records a sell against the position (realized gain/loss = quantity × (sale price − average cost)) and reduces quantity accordingly. Selling the full position soft-deletes it automatically, keeping current views clean while preserving historical accuracy for past snapshots.
 
 ---
 

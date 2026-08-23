@@ -4,7 +4,13 @@ from typing import Literal
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
 
-from app.services.holdings import RegionMismatchError, add_holding
+from app.services.holdings import (
+    HoldingNotFoundError,
+    InsufficientQuantityError,
+    RegionMismatchError,
+    add_holding,
+    sell_holding,
+)
 from app.services.market_data import UnknownTickerError, backfill_price_history, currency_for_region
 
 router = APIRouter(tags=["holdings"])
@@ -28,8 +34,27 @@ class HoldingResponse(BaseModel):
     currency: str
     total_quantity: float
     total_cost: float
+    realized_pnl: float
     date_added: date
     is_active: bool
+
+
+class SellHoldingRequest(BaseModel):
+    qty: float = Field(gt=0)
+    price: float = Field(gt=0)
+
+
+class SellHoldingResponse(BaseModel):
+    id: int
+    ticker: str
+    exchange: str
+    currency: str
+    total_quantity: float
+    total_cost: float
+    realized_pnl: float
+    is_active: bool
+    removed_date: date | None
+    sale_realized_pnl: float
 
 
 class BackfillResponse(BaseModel):
@@ -45,6 +70,31 @@ def create_holding(payload: AddHoldingRequest) -> HoldingResponse:
     except (UnknownTickerError, RegionMismatchError) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return HoldingResponse.model_validate(holding)
+
+
+@router.post("/holdings/{ticker}/sell", response_model=SellHoldingResponse)
+def sell(ticker: str, payload: SellHoldingRequest) -> SellHoldingResponse:
+    ticker = ticker.upper()
+    try:
+        result = sell_holding(ticker, payload.qty, payload.price)
+    except HoldingNotFoundError as exc:
+        raise HTTPException(status_code=404, detail=str(exc)) from exc
+    except InsufficientQuantityError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+
+    holding = result.holding
+    return SellHoldingResponse(
+        id=holding.id,
+        ticker=holding.ticker,
+        exchange=holding.exchange,
+        currency=holding.currency,
+        total_quantity=holding.total_quantity,
+        total_cost=holding.total_cost,
+        realized_pnl=holding.realized_pnl,
+        is_active=holding.is_active,
+        removed_date=holding.removed_date,
+        sale_realized_pnl=result.realized_pnl,
+    )
 
 
 @router.post("/price-history/{ticker}/backfill", response_model=BackfillResponse)

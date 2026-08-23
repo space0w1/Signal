@@ -5,11 +5,15 @@ from app.models.user import User
 
 
 class Holding(BaseModel):
-    """One row per ticker per user. Cost basis is cumulative (not lot-level):
-    total_quantity/total_cost are running totals, average price is derived.
+    """One row per ticker per user. total_quantity/total_cost/realized_pnl
+    are a cache — derived from replaying this holding's `transactions`
+    (the source of truth) — recomputed on every write, never mutated
+    directly. Average price is total_cost / total_quantity, never stored.
 
-    Soft-deleted (is_active=False, removed_date stamped) rather than deleted,
-    so past date-picker snapshots stay honest about what was held when.
+    Soft-deleted (is_active=False, removed_date stamped) rather than
+    deleted — either explicitly, or automatically once a sell brings
+    total_quantity to zero — so past date-picker snapshots stay honest
+    about what was held when.
     """
 
     user = ForeignKeyField(User, backref="holdings")
@@ -18,6 +22,7 @@ class Holding(BaseModel):
     currency = CharField()
     total_quantity = FloatField()
     total_cost = FloatField()
+    realized_pnl = FloatField(default=0)
     date_added = DateField()
     is_active = BooleanField(default=True)
     removed_date = DateField(null=True)

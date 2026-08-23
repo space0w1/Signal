@@ -19,7 +19,7 @@ Bound to your Tailscale interface only. No auth (single user, Tailscale gates ac
 
 | Method | Path | Query params | Returns |
 |---|---|---|---|
-| GET | `/api/portfolio` | `date` (optional, defaults to today) | Aggregate portfolio value + PnL, and the holdings list sorted by PnL descending (powers both the Value/PnL box and the "View Stocks" toggle in Portfolio mode) |
+| GET | `/api/portfolio` | `date` (optional, defaults to today) | Aggregate portfolio value, cost, unrealized PnL (on shares still held), and realized PnL (cumulative, from sells) as of that date, plus the holdings list sorted by total PnL (realized+unrealized) descending (powers both the Value/PnL box and the "View Stocks" toggle in Portfolio mode) |
 | GET | `/api/stock/<ticker>` | `date` (optional) | That stock's current price × qty, cost basis × qty, PnL amount + % |
 
 ### Graph
@@ -47,8 +47,8 @@ Bound to your Tailscale interface only. No auth (single user, Tailscale gates ac
 
 | Method | Path | Body / Query | Effect |
 |---|---|---|---|
-| POST | `/api/holdings` | body: `{ symbol, region, qty, cost }` (`region` is `US`\|`HK`\|`SG`, explicit — not guessed from the ticker suffix, since e.g. a typo'd `.SG` instead of `.SI` silently produced a wrong-currency holding) | Adds a new holding, or adds to an existing one (cumulative qty/cost) if the symbol's already held. Triggers 5yr backfill if it's a brand-new ticker. Fails with 422 if the ticker has no price data, or if `region` doesn't match the region the ticker was originally added under. |
-| DELETE | `/api/holdings/<ticker>` | — | Soft-deletes the holding (excluded from current views, history preserved for past date-picker snapshots) |
+| POST | `/api/holdings` | body: `{ symbol, region, qty, cost }` (`region` is `US`\|`HK`\|`SG`, explicit — not guessed from the ticker suffix, since e.g. a typo'd `.SG` instead of `.SI` silently produced a wrong-currency holding) | Records a buy transaction; a new holding if the symbol isn't already held, or an addition to an existing one otherwise. Triggers 5yr backfill if it's a brand-new ticker. Fails with 422 if the ticker has no price data, or if `region` doesn't match the region the ticker was originally added under. |
+| POST | `/api/holdings/<ticker>/sell` | body: `{ qty, price }` | Records a sell transaction at the given price (average-cost method: realized gain/loss = `qty × (price − average_cost_at_time_of_sale)`). If the sale brings the position to zero, the holding is automatically soft-deleted (`is_active=false`, `removed_date` stamped) — same effect as the old bare "remove", but now with a real sale price backing the PnL. A partial sell just reduces `total_quantity`/`total_cost` and stays active. Fails with 404 if there's no active holding for the ticker, 422 if `qty` exceeds what's currently held. |
 | POST | `/api/price-history/<ticker>/backfill` | query: `region` | Standalone 5yr price backfill for a ticker, independent of adding a holding — useful for retrying after fixing a wrong symbol. Fails with 422 if the ticker has no price data. |
 
 ### FX Rates
@@ -62,5 +62,5 @@ Bound to your Tailscale interface only. No auth (single user, Tailscale gates ac
 
 ## Notes
 
-- Every endpoint above reads from data the nightly cron already computed, **except** the on-demand fallback in `/api/summary` (fires only for stock/date combos not yet cached) and `POST/DELETE /api/holdings` (which write directly).
-- `add_holding()` / `remove_holding()` and `generate_summary()` are written once (Phase 4 / Phase 6) and called identically by both the CLI scripts and these API endpoints — no duplicated logic between the two interfaces.
+- Every endpoint above reads from data the nightly cron already computed, **except** the on-demand fallback in `/api/summary` (fires only for stock/date combos not yet cached) and `POST /api/holdings` / `POST /api/holdings/<ticker>/sell` (which write directly).
+- `add_holding()` / `sell_holding()` and `generate_summary()` are written once (Phase 4 / Phase 6) and called identically by both the CLI scripts and these API endpoints — no duplicated logic between the two interfaces.
