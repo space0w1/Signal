@@ -111,10 +111,14 @@ PRIMARY KEY (date, currency_pair)
 
 -- ============================================================
 -- news_items
--- Raw news per ticker, fetched nightly via yfinance's `.news`.
--- fetched_date ties each batch to the cron day it came in,
--- which keeps date-picker scoping possible even though the
--- individual-stock News panel now reads this table directly
+-- Raw news per ticker, fetched via yfinance's `.news`. fetched_date
+-- ties each batch to the day it came in — the SAME article can
+-- appear on yfinance's feed across multiple days, and each of
+-- those days gets its own row (unique per ticker+url+fetched_date,
+-- NOT per ticker+url), so that querying a specific past date
+-- returns exactly what was fetched that day, not a deduplicated
+-- all-time list. This also keeps date-picker scoping possible even
+-- though the individual-stock News panel reads this table directly
 -- (section 2.5) rather than going through a summary's citations.
 -- ============================================================
 CREATE TABLE news_items (
@@ -123,9 +127,10 @@ ticker       TEXT NOT NULL,
 headline     TEXT NOT NULL,
 source       TEXT,
 url          TEXT,
+thumbnail_url TEXT,              -- smallest available thumbnail from yfinance, for the News panel's card
 published_at TIMESTAMP,          -- article's own publish timestamp, from yfinance
-fetched_date DATE NOT NULL,      -- the cron run date this was pulled on
-UNIQUE (ticker, url)             -- de-dupes re-fetched articles across nights
+fetched_date DATE NOT NULL,      -- the day this fetch ran on
+UNIQUE (ticker, url, fetched_date) -- de-dupes only a same-day re-run, not re-fetches across days
 );
 
 CREATE INDEX idx_news_ticker_date ON news_items (ticker, fetched_date);

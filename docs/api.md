@@ -34,7 +34,8 @@ Bound to your Tailscale interface only. No auth (single user, Tailscale gates ac
 | Method | Path | Query params | Returns |
 |---|---|---|---|
 | GET | `/api/summary` | `target=portfolio\|<ticker>`, `date` | Summary text. For `target=portfolio`, also includes the cited news items in relevance order. Checks the `summaries` cache first; if missing for that target/date, generates live (on-demand fallback), caches it, then returns it. |
-| GET | `/api/news/stock/<ticker>` | — | Raw passthrough of that ticker's cached news (sourced from yfinance's `.news`), no cap, not tied to the summary's citations |
+| GET | `/api/news/stock/<ticker>` | `date` (optional, defaults to today) | Every article fetched for that ticker on that specific date — capped to 5 at fetch time (matching what the AI summary uses as citation candidates), not just at display — no "nearest available" fallback like price/fx (news only exists for days a fetch actually ran); empty list if nothing was fetched that day. Not tied to the summary's citations. |
+| POST | `/api/news/<ticker>/refresh` | — | Fetches current news for a ticker via yfinance and records it under today's `fetched_date`. This is what the nightly cron will call once it exists (for now, trigger manually per ticker); safe to call more than once a day — re-running just no-ops on articles already recorded today. An article seen on a previous day's fetch still gets a fresh row today, since `news_items` is unique per `(ticker, url, fetched_date)`, not per `(ticker, url)`. |
 
 ### Navigation Support (dropdown / date-picker constraints)
 

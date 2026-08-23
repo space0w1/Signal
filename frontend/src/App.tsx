@@ -8,6 +8,7 @@ import { ModifyPortfolioModal } from "./components/ModifyPortfolioModal";
 import { PortfolioGraphCard } from "./components/PortfolioGraphCard";
 import { StockGraphCard } from "./components/StockGraphCard";
 import { StockPnLCard } from "./components/StockPnLCard";
+import { StockNewsPanel } from "./components/StockNewsPanel";
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -65,7 +66,7 @@ export default function App() {
             </div>
             <div className="flex flex-col gap-4">
               <PortfolioSummaryCard portfolio={portfolio} />
-              <ViewStocksNewsPanel holdings={portfolio.holdings} />
+              <ViewStocksNewsPanel holdings={portfolio.holdings} date={date} />
             </div>
           </div>
         ) : (
@@ -83,7 +84,7 @@ export default function App() {
                 ticker={selected}
                 holding={portfolio.holdings.find((h) => h.ticker === selected)}
               />
-              <PlaceholderCard title="News" message="News feed coming soon." className="flex-1" />
+              <StockNewsPanel ticker={selected} date={date} />
             </div>
           </div>
         )

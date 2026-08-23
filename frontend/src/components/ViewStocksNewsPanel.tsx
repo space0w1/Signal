@@ -1,13 +1,39 @@
-import { useState } from "react";
-import type { HoldingPnL } from "../api/client";
+import { useEffect, useState } from "react";
+import { getNewsForStock, type HoldingPnL, type NewsItem } from "../api/client";
 import { formatMoney, pnlColorClass } from "../utils/format";
+import { NewsList } from "./NewsList";
 
 interface Props {
   holdings: HoldingPnL[];
+  date: string;
 }
 
-export function ViewStocksNewsPanel({ holdings }: Props) {
+export function ViewStocksNewsPanel({ holdings, date }: Props) {
   const [tab, setTab] = useState<"stocks" | "news">("stocks");
+  const [news, setNews] = useState<NewsItem[]>([]);
+  const [newsLoading, setNewsLoading] = useState(false);
+  const [newsError, setNewsError] = useState<string | null>(null);
+
+  const tickersKey = holdings.map((h) => h.ticker).join(",");
+
+  useEffect(() => {
+    if (tab !== "news" || !tickersKey) return;
+    const tickers = tickersKey.split(",");
+
+    setNewsLoading(true);
+    setNewsError(null);
+    Promise.all(tickers.map((ticker) => getNewsForStock(ticker, date)))
+      .then((results) => {
+        const merged = results.flat().sort((a, b) => {
+          const aTime = a.published_at ? new Date(a.published_at).getTime() : 0;
+          const bTime = b.published_at ? new Date(b.published_at).getTime() : 0;
+          return bTime - aTime;
+        });
+        setNews(merged);
+      })
+      .catch((err) => setNewsError(err instanceof Error ? err.message : "Failed to load news"))
+      .finally(() => setNewsLoading(false));
+  }, [tab, date, tickersKey]);
 
   return (
     <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
@@ -50,8 +76,16 @@ export function ViewStocksNewsPanel({ holdings }: Props) {
               })}
             </ul>
           )
+        ) : newsLoading ? (
+          <div className="text-sm text-gray-400">Loading...</div>
+        ) : newsError ? (
+          <div className="text-sm text-red-600">{newsError}</div>
         ) : (
-          <div className="text-sm text-gray-400">News feed coming soon.</div>
+          <NewsList
+            items={news}
+            emptyMessage="No news fetched for your holdings on this date yet."
+            showTicker
+          />
         )}
       </div>
     </div>

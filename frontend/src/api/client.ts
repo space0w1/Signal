@@ -80,6 +80,17 @@ export interface StockGraphPoint {
   pnl_amount_sgd: number | null;
 }
 
+export interface NewsItem {
+  id: number;
+  ticker: string;
+  headline: string;
+  source: string | null;
+  url: string | null;
+  thumbnail_url: string | null;
+  published_at: string | null;
+  fetched_date: string;
+}
+
 class ApiError extends Error {}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -114,6 +125,10 @@ export function getPortfolioGraph(date: string, mode: GraphMode): Promise<Portfo
 
 export function getStockGraph(ticker: string, date: string): Promise<StockGraphPoint[]> {
   return request<StockGraphPoint[]>(`/graph/stock/${encodeURIComponent(ticker)}?date=${date}`);
+}
+
+export function getNewsForStock(ticker: string, date: string): Promise<NewsItem[]> {
+  return request<NewsItem[]>(`/news/stock/${encodeURIComponent(ticker)}?date=${date}`);
 }
 
 export function addHolding(payload: {
