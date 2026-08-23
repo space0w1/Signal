@@ -21,6 +21,10 @@ services:
       - "8000:8000"
     environment:
       - DATABASE_URL=postgresql://signal:signal@db:5432/signal
+      - LLM_PROVIDER=${LLM_PROVIDER:-gemini}
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GEMINI_API_KEY=${GEMINI_API_KEY:-}
+      - GEMINI_MODEL=${GEMINI_MODEL:-gemini-3.7-flash}
     depends_on:
       db:
         condition: service_healthy

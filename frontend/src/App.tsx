@@ -3,12 +3,12 @@ import { getPortfolio, type Portfolio } from "./api/client";
 import { TopBar, PORTFOLIO_OPTION } from "./components/TopBar";
 import { PortfolioSummaryCard } from "./components/PortfolioSummaryCard";
 import { ViewStocksNewsPanel } from "./components/ViewStocksNewsPanel";
-import { PlaceholderCard } from "./components/PlaceholderCard";
 import { ModifyPortfolioModal } from "./components/ModifyPortfolioModal";
 import { PortfolioGraphCard } from "./components/PortfolioGraphCard";
 import { StockGraphCard } from "./components/StockGraphCard";
 import { StockPnLCard } from "./components/StockPnLCard";
 import { StockNewsPanel } from "./components/StockNewsPanel";
+import { AISummaryCard } from "./components/AISummaryCard";
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -58,11 +58,7 @@ export default function App() {
           <div className="grid grid-cols-3 gap-4">
             <div className="col-span-2 flex flex-col gap-4">
               <PortfolioGraphCard date={date} />
-              <PlaceholderCard
-                title="AI Summary"
-                message="Nightly AI-generated portfolio summary coming soon."
-                className="h-32"
-              />
+              <AISummaryCard target="portfolio" date={date} />
             </div>
             <div className="flex flex-col gap-4">
               <PortfolioSummaryCard portfolio={portfolio} />
@@ -73,11 +69,7 @@ export default function App() {
           <div className="grid grid-cols-3 gap-4">
             <div className="col-span-2 flex flex-col gap-4">
               <StockGraphCard ticker={selected} date={date} />
-              <PlaceholderCard
-                title="AI Summary"
-                message={`Nightly AI-generated summary for ${selected} coming soon.`}
-                className="h-32"
-              />
+              <AISummaryCard target={selected} date={date} />
             </div>
             <div className="flex flex-col gap-4">
               <StockPnLCard

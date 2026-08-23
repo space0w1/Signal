@@ -91,6 +91,15 @@ export interface NewsItem {
   fetched_date: string;
 }
 
+export interface Summary {
+  target_type: string;
+  ticker: string | null;
+  date: string;
+  summary: string;
+  cited_news: NewsItem[];
+  generated_at: string;
+}
+
 class ApiError extends Error {}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -129,6 +138,10 @@ export function getStockGraph(ticker: string, date: string): Promise<StockGraphP
 
 export function getNewsForStock(ticker: string, date: string): Promise<NewsItem[]> {
   return request<NewsItem[]>(`/news/stock/${encodeURIComponent(ticker)}?date=${date}`);
+}
+
+export function getSummary(target: string, date: string): Promise<Summary> {
+  return request<Summary>(`/summary?target=${encodeURIComponent(target)}&date=${date}`);
 }
 
 export function addHolding(payload: {
