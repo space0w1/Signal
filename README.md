@@ -64,7 +64,7 @@ The system runs an automated cron process every morning between **06:00 AM and 0
 
 ```
 .
-├── backend/          # FastAPI app (yfinance, trafilatura, peewee/SQLite)
+├── backend/          # FastAPI app (yfinance, trafilatura, peewee/PostgreSQL)
 │   ├── app/
 │   │   ├── api/routes/
 │   │   ├── core/      # settings
@@ -93,4 +93,4 @@ docker compose up --build
 - Backend API: http://localhost:8000/api
 
 For frontend-only iteration without Docker: `cd frontend && npm install && npm run dev` (proxies `/api` to `localhost:8000`).
-For backend-only iteration: `cd backend && pip install -r requirements-dev.txt && uvicorn app.main:app --reload`.
+For backend-only iteration: run `docker compose up db` to get Postgres up, then `cd backend && pip install -r requirements-dev.txt && DATABASE_URL=postgresql://signal:signal@localhost:5432/signal uvicorn app.main:app --reload` (note the `localhost` host — `db` only resolves inside the compose network).

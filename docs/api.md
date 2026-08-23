@@ -45,10 +45,11 @@ Bound to your Tailscale interface only. No auth (single user, Tailscale gates ac
 
 ### Portfolio Management (Modify Portfolio modal)
 
-| Method | Path | Body | Effect |
+| Method | Path | Body / Query | Effect |
 |---|---|---|---|
-| POST | `/api/holdings` | `{ symbol, qty, cost }` | Adds a new holding, or adds to an existing one (cumulative qty/cost) if the symbol's already held. Triggers 5yr backfill if it's a brand-new ticker. |
+| POST | `/api/holdings` | body: `{ symbol, region, qty, cost }` (`region` is `US`\|`HK`\|`SG`, explicit — not guessed from the ticker suffix, since e.g. a typo'd `.SG` instead of `.SI` silently produced a wrong-currency holding) | Adds a new holding, or adds to an existing one (cumulative qty/cost) if the symbol's already held. Triggers 5yr backfill if it's a brand-new ticker. Fails with 422 if the ticker has no price data, or if `region` doesn't match the region the ticker was originally added under. |
 | DELETE | `/api/holdings/<ticker>` | — | Soft-deletes the holding (excluded from current views, history preserved for past date-picker snapshots) |
+| POST | `/api/price-history/<ticker>/backfill` | query: `region` | Standalone 5yr price backfill for a ticker, independent of adding a holding — useful for retrying after fixing a wrong symbol. Fails with 422 if the ticker has no price data. |
 
 ---
 

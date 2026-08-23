@@ -1,10 +1,13 @@
-from pathlib import Path
-
-from peewee import SqliteDatabase
+from playhouse.db_url import connect
 
 from app.core.config import settings
 
-Path("data").mkdir(exist_ok=True)
+database = connect(settings.database_url)
 
-db_path = settings.database_url.removeprefix("sqlite:///")
-database = SqliteDatabase(db_path)
+
+def init_db() -> None:
+    from app.models import ALL_MODELS
+
+    database.connect(reuse_if_open=True)
+    database.create_tables(ALL_MODELS)
+    database.close()
