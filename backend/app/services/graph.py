@@ -149,6 +149,27 @@ def get_portfolio_value_series(as_of: date) -> list[DailyPortfolioPoint]:
     return [totals[d] for d in axis]
 
 
+@dataclass
+class StockPricePoint:
+    date: date
+    price: float
+    currency: str
+
+
+def get_stock_price_series(ticker: str, as_of: date) -> list[StockPricePoint]:
+    """Raw 5yr close-price line for a single ticker, in its native currency —
+    no FX/quantity/cost involved, matching the Individual Stock mode's
+    'isolated historical price line' (unlike the portfolio overlay, this
+    isn't normalized or bounded by when the user actually held it)."""
+    start = _range_start(as_of)
+    prices = (
+        PriceHistory.select()
+        .where(PriceHistory.ticker == ticker, PriceHistory.date >= start, PriceHistory.date <= as_of)
+        .order_by(PriceHistory.date)
+    )
+    return [StockPricePoint(date=p.date, price=p.close_price, currency=p.currency) for p in prices]
+
+
 def get_overlay_series(as_of: date) -> dict[str, list[OverlayPoint]]:
     """Normalized % price return per currently-active holding, each series
     starting at 0% on the later of (holding's date_added, 5yr ago) — pure
@@ -171,6 +192,19 @@ def get_overlay_series(as_of: date) -> dict[str, list[OverlayPoint]]:
             .order_by(PriceHistory.date)
         )
         if not prices:
+            # No trading day has occurred since this holding was added yet
+            # (e.g. added today, but price data lags a day or two behind
+            # without a live nightly cron). Fall back to the latest known
+            # price so the ticker still appears on the chart, anchored at 0%
+            # for today, instead of silently vanishing from the response.
+            latest = (
+                PriceHistory.select()
+                .where(PriceHistory.ticker == holding.ticker, PriceHistory.date <= as_of)
+                .order_by(PriceHistory.date.desc())
+                .first()
+            )
+            if latest is not None:
+                result[holding.ticker] = [OverlayPoint(date=as_of, return_pct=0.0)]
             continue
 
         base_price = prices[0].close_price

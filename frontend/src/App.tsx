@@ -6,6 +6,8 @@ import { ViewStocksNewsPanel } from "./components/ViewStocksNewsPanel";
 import { PlaceholderCard } from "./components/PlaceholderCard";
 import { ModifyPortfolioModal } from "./components/ModifyPortfolioModal";
 import { PortfolioGraphCard } from "./components/PortfolioGraphCard";
+import { StockGraphCard } from "./components/StockGraphCard";
+import { StockPnLCard } from "./components/StockPnLCard";
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -67,11 +69,23 @@ export default function App() {
             </div>
           </div>
         ) : (
-          <PlaceholderCard
-            title={`${selected} — Individual Stock View`}
-            message="Coming soon."
-            className="h-96"
-          />
+          <div className="grid grid-cols-3 gap-4">
+            <div className="col-span-2 flex flex-col gap-4">
+              <StockGraphCard ticker={selected} date={date} />
+              <PlaceholderCard
+                title="AI Summary"
+                message={`Nightly AI-generated summary for ${selected} coming soon.`}
+                className="h-32"
+              />
+            </div>
+            <div className="flex flex-col gap-4">
+              <StockPnLCard
+                ticker={selected}
+                holding={portfolio.holdings.find((h) => h.ticker === selected)}
+              />
+              <PlaceholderCard title="News" message="News feed coming soon." className="flex-1" />
+            </div>
+          </div>
         )
       )}
 

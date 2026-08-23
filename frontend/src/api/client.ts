@@ -70,6 +70,12 @@ export interface PortfolioGraph {
   overlay: Record<string, OverlayPoint[]> | null;
 }
 
+export interface StockPricePoint {
+  date: string;
+  price: number;
+  currency: string;
+}
+
 class ApiError extends Error {}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -100,6 +106,10 @@ export function getPortfolio(date?: string): Promise<Portfolio> {
 
 export function getPortfolioGraph(date: string, mode: GraphMode): Promise<PortfolioGraph> {
   return request<PortfolioGraph>(`/graph/portfolio?date=${date}&mode=${mode}`);
+}
+
+export function getStockGraph(ticker: string, date: string): Promise<StockPricePoint[]> {
+  return request<StockPricePoint[]>(`/graph/stock/${encodeURIComponent(ticker)}?date=${date}`);
 }
 
 export function addHolding(payload: {

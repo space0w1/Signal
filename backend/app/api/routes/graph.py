@@ -4,7 +4,7 @@ from typing import Literal
 from fastapi import APIRouter, Query
 from pydantic import BaseModel, ConfigDict
 
-from app.services.graph import get_overlay_series, get_portfolio_value_series
+from app.services.graph import get_overlay_series, get_portfolio_value_series, get_stock_price_series
 
 router = APIRouter(tags=["graph"])
 
@@ -34,6 +34,14 @@ class GraphResponse(BaseModel):
     overlay: dict[str, list[OverlayPointResponse]] | None = None
 
 
+class StockPricePointResponse(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    date: date
+    price: float
+    currency: str
+
+
 @router.get("/graph/portfolio", response_model=GraphResponse)
 def graph_portfolio(
     as_of: date | None = Query(default=None, alias="date"),
@@ -49,3 +57,13 @@ def graph_portfolio(
         for ticker, points in get_overlay_series(as_of).items()
     }
     return GraphResponse(mode=mode, overlay=overlay)
+
+
+@router.get("/graph/stock/{ticker}", response_model=list[StockPricePointResponse])
+def graph_stock(
+    ticker: str,
+    as_of: date | None = Query(default=None, alias="date"),
+) -> list[StockPricePointResponse]:
+    as_of = as_of or date.today()
+    points = get_stock_price_series(ticker.upper(), as_of)
+    return [StockPricePointResponse.model_validate(p) for p in points]
