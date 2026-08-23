@@ -5,6 +5,7 @@ import { PortfolioSummaryCard } from "./components/PortfolioSummaryCard";
 import { ViewStocksNewsPanel } from "./components/ViewStocksNewsPanel";
 import { PlaceholderCard } from "./components/PlaceholderCard";
 import { ModifyPortfolioModal } from "./components/ModifyPortfolioModal";
+import { PortfolioGraphCard } from "./components/PortfolioGraphCard";
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -53,11 +54,7 @@ export default function App() {
         selected === PORTFOLIO_OPTION ? (
           <div className="grid grid-cols-3 gap-4">
             <div className="col-span-2 flex flex-col gap-4">
-              <PlaceholderCard
-                title="Portfolio Graph"
-                message="Historical value chart coming soon."
-                className="h-80"
-              />
+              <PortfolioGraphCard date={date} />
               <PlaceholderCard
                 title="AI Summary"
                 message="Nightly AI-generated portfolio summary coming soon."

@@ -49,6 +49,27 @@ export interface SellResult {
   sale_realized_pnl: number;
 }
 
+export type GraphMode = "aggregate" | "overlay";
+
+export interface AggregatePoint {
+  date: string;
+  total_value_sgd: number;
+  total_cost_sgd: number;
+  total_unrealized_pnl_amount: number;
+  total_realized_pnl_sgd: number;
+}
+
+export interface OverlayPoint {
+  date: string;
+  return_pct: number;
+}
+
+export interface PortfolioGraph {
+  mode: GraphMode;
+  aggregate: AggregatePoint[] | null;
+  overlay: Record<string, OverlayPoint[]> | null;
+}
+
 class ApiError extends Error {}
 
 async function request<T>(path: string, init?: RequestInit): Promise<T> {
@@ -75,6 +96,10 @@ async function request<T>(path: string, init?: RequestInit): Promise<T> {
 export function getPortfolio(date?: string): Promise<Portfolio> {
   const query = date ? `?date=${date}` : "";
   return request<Portfolio>(`/portfolio${query}`);
+}
+
+export function getPortfolioGraph(date: string, mode: GraphMode): Promise<PortfolioGraph> {
+  return request<PortfolioGraph>(`/graph/portfolio?date=${date}&mode=${mode}`);
 }
 
 export function addHolding(payload: {

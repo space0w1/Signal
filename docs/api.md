@@ -26,7 +26,7 @@ Bound to your Tailscale interface only. No auth (single user, Tailscale gates ac
 
 | Method | Path | Query params | Returns |
 |---|---|---|---|
-| GET | `/api/graph/portfolio` | `date`, `mode=aggregate\|overlay` | `aggregate`: portfolio value over time (5yr), reconstructed honestly (stocks contribute $0 before their purchase date). `overlay`: all held stocks' normalized % return, plotted together |
+| GET | `/api/graph/portfolio` | `date` (optional, defaults to today), `mode=aggregate\|overlay` (default `aggregate`) | `aggregate`: daily total portfolio value/cost/unrealized/realized PnL in SGD over the last 5yr, reconstructed honestly (a stock contributes $0 before its `date_added`, and includes closed-out positions — their own quantity naturally goes to zero outside the window they were held, so they still show their real contribution while owned). The trading-day axis is the union of all involved tickers' price dates, so a holiday on one exchange doesn't create a false dip from a ticker on another market that was still open. `overlay`: normalized % price return per currently-active holding (pure price movement, no FX/quantity involved), each starting at 0% on the later of its own `date_added` or 5yr ago. |
 | GET | `/api/graph/stock/<ticker>` | `date` (optional) | Single price line for that ticker, 5yr |
 
 ### Summary & News
