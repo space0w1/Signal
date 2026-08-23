@@ -20,6 +20,7 @@ import {
 import { formatMoney } from "../utils/format";
 
 const LINE_COLORS = ["#2563eb", "#16a34a", "#dc2626", "#9333ea", "#d97706", "#0891b2"];
+const PORTFOLIO_LINE_KEY = "Portfolio";
 
 interface Props {
   date: string;
@@ -29,6 +30,7 @@ export function PortfolioGraphCard({ date }: Props) {
   const [mode, setMode] = useState<GraphMode>("aggregate");
   const [aggregate, setAggregate] = useState<AggregatePoint[]>([]);
   const [overlay, setOverlay] = useState<Record<string, OverlayPoint[]>>({});
+  const [overlayPortfolio, setOverlayPortfolio] = useState<OverlayPoint[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -39,6 +41,7 @@ export function PortfolioGraphCard({ date }: Props) {
       .then((data) => {
         setAggregate(data.aggregate ?? []);
         setOverlay(data.overlay ?? {});
+        setOverlayPortfolio(data.overlay_portfolio ?? []);
       })
       .catch((err) => setError(err instanceof Error ? err.message : "Failed to load graph"))
       .finally(() => setLoading(false));
@@ -72,7 +75,7 @@ export function PortfolioGraphCard({ date }: Props) {
           {mode === "aggregate" ? (
             <AggregateChart points={aggregate} />
           ) : (
-            <OverlayChart series={overlay} />
+            <OverlayChart series={overlay} portfolio={overlayPortfolio} />
           )}
         </div>
       )}
@@ -119,7 +122,13 @@ function AggregateChart({ points }: { points: AggregatePoint[] }) {
   );
 }
 
-function OverlayChart({ series }: { series: Record<string, OverlayPoint[]> }) {
+function OverlayChart({
+  series,
+  portfolio,
+}: {
+  series: Record<string, OverlayPoint[]>;
+  portfolio: OverlayPoint[];
+}) {
   const tickers = useMemo(() => Object.keys(series), [series]);
 
   const rows = useMemo(() => {
@@ -127,19 +136,23 @@ function OverlayChart({ series }: { series: Record<string, OverlayPoint[]> }) {
     for (const points of Object.values(series)) {
       for (const p of points) dateSet.add(p.date);
     }
+    for (const p of portfolio) dateSet.add(p.date);
     const dates = Array.from(dateSet).sort();
+
     const lookups = tickers.map((t) => new Map(series[t].map((p) => [p.date, p.pnl_pct])));
+    const portfolioLookup = new Map(portfolio.map((p) => [p.date, p.pnl_pct]));
 
     return dates.map((date) => {
       const row: Record<string, string | number | null> = { date };
       tickers.forEach((ticker, i) => {
         row[ticker] = lookups[i].get(date) ?? null;
       });
+      row[PORTFOLIO_LINE_KEY] = portfolioLookup.get(date) ?? null;
       return row;
     });
-  }, [series, tickers]);
+  }, [series, tickers, portfolio]);
 
-  if (tickers.length === 0) {
+  if (tickers.length === 0 && portfolio.length === 0) {
     return (
       <div className="flex h-full items-center justify-center text-sm text-gray-400">
         No active holdings yet.
@@ -161,11 +174,20 @@ function OverlayChart({ series }: { series: Record<string, OverlayPoint[]> }) {
             type="monotone"
             dataKey={ticker}
             stroke={LINE_COLORS[i % LINE_COLORS.length]}
-            strokeWidth={2}
+            strokeWidth={1.5}
             dot={false}
             connectNulls={false}
+            strokeOpacity={0.6}
           />
         ))}
+        <Line
+          type="monotone"
+          dataKey={PORTFOLIO_LINE_KEY}
+          stroke="#111827"
+          strokeWidth={3}
+          dot={false}
+          connectNulls={false}
+        />
       </LineChart>
     </ResponsiveContainer>
   );

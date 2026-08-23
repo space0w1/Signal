@@ -68,12 +68,15 @@ export interface PortfolioGraph {
   mode: GraphMode;
   aggregate: AggregatePoint[] | null;
   overlay: Record<string, OverlayPoint[]> | null;
+  overlay_portfolio: OverlayPoint[] | null;
 }
 
-export interface StockPricePoint {
+export interface StockGraphPoint {
   date: string;
   price: number;
   currency: string;
+  pnl_pct: number | null;
+  pnl_amount_sgd: number | null;
 }
 
 class ApiError extends Error {}
@@ -108,8 +111,8 @@ export function getPortfolioGraph(date: string, mode: GraphMode): Promise<Portfo
   return request<PortfolioGraph>(`/graph/portfolio?date=${date}&mode=${mode}`);
 }
 
-export function getStockGraph(ticker: string, date: string): Promise<StockPricePoint[]> {
-  return request<StockPricePoint[]>(`/graph/stock/${encodeURIComponent(ticker)}?date=${date}`);
+export function getStockGraph(ticker: string, date: string): Promise<StockGraphPoint[]> {
+  return request<StockGraphPoint[]>(`/graph/stock/${encodeURIComponent(ticker)}?date=${date}`);
 }
 
 export function addHolding(payload: {

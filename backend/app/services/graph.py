@@ -150,24 +150,62 @@ def get_portfolio_value_series(as_of: date) -> list[DailyPortfolioPoint]:
 
 
 @dataclass
-class StockPricePoint:
+class StockGraphPoint:
     date: date
     price: float
     currency: str
+    pnl_pct: float | None  # None if this ticker isn't a currently-active holding
+    pnl_amount_sgd: float | None  # absolute unrealized PnL in SGD, matching every other PnL figure in the app
 
 
-def get_stock_price_series(ticker: str, as_of: date) -> list[StockPricePoint]:
-    """Raw 5yr close-price line for a single ticker, in its native currency —
-    no FX/quantity/cost involved, matching the Individual Stock mode's
-    'isolated historical price line' (unlike the portfolio overlay, this
-    isn't normalized or bounded by when the user actually held it)."""
+def get_stock_graph_series(ticker: str, as_of: date) -> list[StockGraphPoint]:
+    """5yr close-price line for a single ticker, in its native currency, plus
+    unrealized PnL % and absolute $ (SGD) for each day it's been held (None
+    outside that window, or entirely if the ticker isn't a currently-active
+    holding) — lets the frontend toggle between raw price and PnL% without a
+    second endpoint."""
     start = _range_start(as_of)
-    prices = (
+    prices = list(
         PriceHistory.select()
         .where(PriceHistory.ticker == ticker, PriceHistory.date >= start, PriceHistory.date <= as_of)
         .order_by(PriceHistory.date)
     )
-    return [StockPricePoint(date=p.date, price=p.close_price, currency=p.currency) for p in prices]
+
+    user = get_default_user()
+    holding = Holding.get_or_none(Holding.user == user, Holding.ticker == ticker, Holding.is_active == True)  # noqa: E712
+
+    pnl_pct_by_date: dict[date, float] = {}
+    pnl_amount_by_date: dict[date, float] = {}
+    if holding is not None:
+        axis = _build_axis([ticker], max(start, holding.date_added), as_of)
+        for p in _holding_daily_series(holding, axis, as_of):
+            pnl_pct_by_date[p.date] = (p.unrealized_pnl / p.cost_sgd * 100) if p.cost_sgd else 0.0
+            pnl_amount_by_date[p.date] = p.unrealized_pnl
+
+    return [
+        StockGraphPoint(
+            date=p.date,
+            price=p.close_price,
+            currency=p.currency,
+            pnl_pct=pnl_pct_by_date.get(p.date),
+            pnl_amount_sgd=pnl_amount_by_date.get(p.date),
+        )
+        for p in prices
+    ]
+
+
+def get_portfolio_pnl_pct_series(as_of: date) -> list[OverlayPoint]:
+    """Overall portfolio unrealized PnL % over time — total_unrealized_pnl /
+    total_cost from get_portfolio_value_series, just normalized to a
+    percentage so it can be plotted alongside the per-holding overlay lines
+    as a single blended 'how is the whole portfolio doing' line."""
+    return [
+        OverlayPoint(
+            date=p.date,
+            pnl_pct=(p.total_unrealized_pnl_amount / p.total_cost_sgd * 100) if p.total_cost_sgd else 0.0,
+        )
+        for p in get_portfolio_value_series(as_of)
+    ]
 
 
 def get_overlay_series(as_of: date) -> dict[str, list[OverlayPoint]]:
