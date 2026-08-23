@@ -1,6 +1,8 @@
 from datetime import date
 
-from app.models import Holding, PriceHistory, User
+from peewee import fn
+
+from app.models import Holding, Purchase, PriceHistory, User
 from app.services.market_data import backfill_price_history, currency_for_region
 
 DEFAULT_USER_ID = 1
@@ -17,6 +19,24 @@ def get_default_user() -> User:
     return user
 
 
+def _recompute_totals(holding: Holding) -> None:
+    """Refreshes the total_quantity/total_cost cache from `purchases` —
+    the source of truth — bounded to the holding's current active window
+    (purchases from an earlier stint, before a soft-delete, are excluded)."""
+    agg = (
+        Purchase.select(
+            fn.SUM(Purchase.quantity).alias("qty"),
+            fn.SUM(Purchase.quantity * Purchase.price).alias("cost"),
+        )
+        .where(Purchase.holding == holding, Purchase.purchase_date >= holding.date_added)
+        .dicts()
+        .get()
+    )
+    holding.total_quantity = agg["qty"] or 0
+    holding.total_cost = agg["cost"] or 0
+    holding.save()
+
+
 def add_holding(ticker: str, qty: float, cost: float, region: str) -> Holding:
     user = get_default_user()
     currency = currency_for_region(region)
@@ -27,6 +47,7 @@ def add_holding(ticker: str, qty: float, cost: float, region: str) -> Holding:
     if is_new_ticker:
         backfill_price_history(ticker, currency)
 
+    today = date.today()
     holding = Holding.get_or_none(Holding.user == user, Holding.ticker == ticker)
 
     if holding is not None and holding.exchange != region:
@@ -34,29 +55,27 @@ def add_holding(ticker: str, qty: float, cost: float, region: str) -> Holding:
             f"'{ticker}' is already tracked as region '{holding.exchange}', got '{region}'"
         )
 
-    if holding is not None and holding.is_active:
-        holding.total_quantity += qty
-        holding.total_cost += qty * cost
-        holding.save()
-    elif holding is not None:
-        # Ticker was previously soft-deleted. Treat this as a fresh position
-        # rather than resuming the old cost basis.
-        holding.total_quantity = qty
-        holding.total_cost = qty * cost
-        holding.date_added = date.today()
-        holding.is_active = True
-        holding.removed_date = None
-        holding.save()
-    else:
+    if holding is None:
         holding = Holding.create(
             user=user,
             ticker=ticker,
             exchange=region,
             currency=currency,
-            total_quantity=qty,
-            total_cost=qty * cost,
-            date_added=date.today(),
+            total_quantity=0,
+            total_cost=0,
+            date_added=today,
             is_active=True,
         )
+    elif not holding.is_active:
+        # Reactivating a previously soft-deleted position starts a fresh
+        # window — purchases from the earlier stint stay in the table but
+        # are excluded from the cache/point-in-time queries by date_added.
+        holding.date_added = today
+        holding.is_active = True
+        holding.removed_date = None
+        holding.save()
+
+    Purchase.create(holding=holding, quantity=qty, price=cost, purchase_date=today)
+    _recompute_totals(holding)
 
     return holding

@@ -36,7 +36,7 @@ A self-hosted, single-page portfolio dashboard built for multi-market stock trac
 ### 2. Graph & Performance Visualizer
 * **Portfolio Mode**: Toggle between total aggregate SGD value (5-year view) or overlaid normalized percentage returns across all active holdings.
 * **Individual Stock Mode**: Isolated historical price line for the selected ticker.
-* **Cost Basis Tracking**: Cumulative running average per ticker—buying additional shares updates quantity and average cost dynamically.
+* **Cost Basis Tracking**: Every purchase is recorded individually (quantity, price, date). Quantity and average cost are a quantity-weighted derivation over purchases—computed per query date, so a past snapshot reflects only the purchases that had happened by then, not later ones applied backward.
 
 ### 3. AI Summary Engine
 * **Cron Generation**: Runs automatically every night post-market close.
@@ -49,7 +49,7 @@ A self-hosted, single-page portfolio dashboard built for multi-market stock trac
     * *Stock Mode*: Live passthrough of `yfinance` news for the selected ticker.
 * **View Stocks Panel** *(Portfolio Mode)*: Sortable list of held positions ranked from highest to lowest PnL.
 * **Modify Portfolio Modal**:
-    * *Add Holding*: Enter symbol, quantity, and cost price (triggers immediate 5-year historical backfill).
+    * *Add Holding*: Enter symbol, region (US/HK/SG), quantity, and cost price (triggers immediate 5-year historical backfill for a brand-new ticker).
     * *Remove Holding*: Soft-deletes positions to keep current views clean while preserving historical accuracy for past snapshots.
 
 ---

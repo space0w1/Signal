@@ -1,8 +1,31 @@
 from dataclasses import dataclass
 from datetime import date
 
-from app.models import FxRate, Holding, PriceHistory
+from peewee import fn
+
+from app.models import FxRate, Holding, PriceHistory, Purchase
 from app.services.holdings import get_default_user
+
+
+def _quantity_and_cost_as_of(holding: Holding, as_of: date) -> tuple[float, float]:
+    """Replays purchases up to as_of (bounded by the holding's current active
+    window) instead of using the holding's current totals — so a past date
+    reflects what was actually owned then, not later purchases applied
+    backward in time."""
+    agg = (
+        Purchase.select(
+            fn.SUM(Purchase.quantity).alias("qty"),
+            fn.SUM(Purchase.quantity * Purchase.price).alias("cost"),
+        )
+        .where(
+            Purchase.holding == holding,
+            Purchase.purchase_date >= holding.date_added,
+            Purchase.purchase_date <= as_of,
+        )
+        .dicts()
+        .get()
+    )
+    return agg["qty"] or 0, agg["cost"] or 0
 
 
 def _latest_price(ticker: str, as_of: date) -> PriceHistory | None:
@@ -80,8 +103,12 @@ def get_portfolio(as_of: date | None = None) -> PortfolioValuation:
         if fx_rate is None:
             continue  # no fx data available on/before this date yet
 
-        value_sgd = holding.total_quantity * price_row.close_price * fx_rate
-        cost_sgd = holding.total_cost * fx_rate
+        quantity, cost_native = _quantity_and_cost_as_of(holding, as_of)
+        if quantity == 0:
+            continue  # no purchases had happened yet as of this date
+
+        value_sgd = quantity * price_row.close_price * fx_rate
+        cost_sgd = cost_native * fx_rate
         pnl_amount = value_sgd - cost_sgd
         pnl_pct = (pnl_amount / cost_sgd * 100) if cost_sgd else 0.0
 
@@ -90,7 +117,7 @@ def get_portfolio(as_of: date | None = None) -> PortfolioValuation:
                 ticker=holding.ticker,
                 exchange=holding.exchange,
                 currency=holding.currency,
-                quantity=holding.total_quantity,
+                quantity=quantity,
                 price=price_row.close_price,
                 price_date=price_row.date,
                 value_sgd=value_sgd,
