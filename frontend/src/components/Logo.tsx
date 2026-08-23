@@ -17,7 +17,8 @@ export function Logo() {
     <span className="text-xl font-semibold tracking-tight text-gray-900">
       S
       <Candle color="#16a34a" />
-      gnal
+      gna
+      <span className="text-red-600">l</span>
     </span>
   );
 }
