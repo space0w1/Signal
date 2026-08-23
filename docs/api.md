@@ -51,6 +51,12 @@ Bound to your Tailscale interface only. No auth (single user, Tailscale gates ac
 | DELETE | `/api/holdings/<ticker>` | — | Soft-deletes the holding (excluded from current views, history preserved for past date-picker snapshots) |
 | POST | `/api/price-history/<ticker>/backfill` | query: `region` | Standalone 5yr price backfill for a ticker, independent of adding a holding — useful for retrying after fixing a wrong symbol. Fails with 422 if the ticker has no price data. |
 
+### FX Rates
+
+| Method | Path | Body / Query | Effect |
+|---|---|---|---|
+| POST | `/api/fx-rates/refresh` | — | Fetches today's spot USD→SGD and HKD→SGD rates (yfinance `USDSGD=X` / `HKDSGD=X`) and upserts them into `fx_rates`. This is what the nightly cron (README section "Nightly Schedule") calls; safe to call more than once a day — re-running just overwrites today's row. Fails with 502 if yfinance has no rate for a pair. |
+
 ---
 
 ## Notes
