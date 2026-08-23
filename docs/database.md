@@ -128,6 +128,7 @@ headline     TEXT NOT NULL,
 source       TEXT,
 url          TEXT,
 thumbnail_url TEXT,              -- smallest available thumbnail from yfinance, for the News panel's card
+article_text TEXT,               -- full text extracted via trafilatura, best-effort; context for the AI summary
 published_at TIMESTAMP,          -- article's own publish timestamp, from yfinance
 fetched_date DATE NOT NULL,      -- the day this fetch ran on
 UNIQUE (ticker, url, fetched_date) -- de-dupes only a same-day re-run, not re-fetches across days

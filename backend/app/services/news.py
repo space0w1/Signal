@@ -1,5 +1,6 @@
 from datetime import date, datetime
 
+import trafilatura
 import yfinance as yf
 
 from app.db import database
@@ -31,6 +32,19 @@ def _extract_thumbnail(content: dict) -> str | None:
     return thumbnail.get("originalUrl")
 
 
+def _fetch_article_text(url: str) -> str | None:
+    """Downloads and extracts clean article text via trafilatura (see
+    backend/tests/test_yahoo.py). Best-effort: many sites block scrapers or
+    paywall content, so a failure here shouldn't fail the whole refresh."""
+    try:
+        downloaded = trafilatura.fetch_url(url)
+        if not downloaded:
+            return None
+        return trafilatura.extract(downloaded)
+    except Exception:
+        return None
+
+
 def fetch_news(ticker: str) -> list[dict]:
     """The FETCH_LIMIT most recent news items for a ticker via yfinance,
     normalized across its old/new schema variants (see
@@ -59,6 +73,7 @@ def fetch_news(ticker: str) -> list[dict]:
                 "source": publisher,
                 "url": url,
                 "thumbnail_url": _extract_thumbnail(content),
+                "article_text": _fetch_article_text(url) if url else None,
                 "published_at": _parse_published_at(item),
             }
         )
@@ -81,6 +96,7 @@ def refresh_news(ticker: str) -> int:
             "source": item["source"],
             "url": item["url"],
             "thumbnail_url": item["thumbnail_url"],
+            "article_text": item["article_text"],
             "published_at": item["published_at"],
             "fetched_date": today,
         }

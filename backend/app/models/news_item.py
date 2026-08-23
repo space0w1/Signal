@@ -16,6 +16,7 @@ class NewsItem(BaseModel):
     source = CharField(null=True)
     url = TextField(null=True)
     thumbnail_url = TextField(null=True)
+    article_text = TextField(null=True)  # extracted via trafilatura; context for the AI summary
     published_at = DateTimeField(null=True)
     fetched_date = DateField()
 
