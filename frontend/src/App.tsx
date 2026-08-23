@@ -9,6 +9,7 @@ import { StockGraphCard } from "./components/StockGraphCard";
 import { StockPnLCard } from "./components/StockPnLCard";
 import { StockNewsPanel } from "./components/StockNewsPanel";
 import { AISummaryCard } from "./components/AISummaryCard";
+import { Logo } from "./components/Logo";
 
 function todayIso(): string {
   return new Date().toISOString().slice(0, 10);
@@ -39,7 +40,9 @@ export default function App() {
 
   return (
     <div className="mx-auto max-w-6xl p-6">
-      <h1 className="mb-4 text-xl font-semibold text-gray-900">Signal</h1>
+      <h1 className="mb-4">
+        <Logo />
+      </h1>
 
       <TopBar
         tickers={tickers}

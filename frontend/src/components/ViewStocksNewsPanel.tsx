@@ -9,7 +9,7 @@ interface Props {
 }
 
 export function ViewStocksNewsPanel({ holdings, date }: Props) {
-  const [tab, setTab] = useState<"stocks" | "news">("stocks");
+  const [tab, setTab] = useState<"stocks" | "news">("news");
   const [news, setNews] = useState<NewsItem[]>([]);
   const [newsLoading, setNewsLoading] = useState(false);
   const [newsError, setNewsError] = useState<string | null>(null);
@@ -39,16 +39,16 @@ export function ViewStocksNewsPanel({ holdings, date }: Props) {
     <div className="flex flex-col rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
       <div className="mb-3 flex rounded-lg bg-gray-100 p-1 text-sm font-medium">
         <button
-          className={`flex-1 rounded-md py-1.5 ${tab === "stocks" ? "bg-white shadow-sm" : "text-gray-500"}`}
-          onClick={() => setTab("stocks")}
-        >
-          View Stocks
-        </button>
-        <button
           className={`flex-1 rounded-md py-1.5 ${tab === "news" ? "bg-white shadow-sm" : "text-gray-500"}`}
           onClick={() => setTab("news")}
         >
           News
+        </button>
+        <button
+          className={`flex-1 rounded-md py-1.5 ${tab === "stocks" ? "bg-white shadow-sm" : "text-gray-500"}`}
+          onClick={() => setTab("stocks")}
+        >
+          View Stocks
         </button>
       </div>
 
