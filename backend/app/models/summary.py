@@ -16,7 +16,8 @@ class Summary(BaseModel):
     target_type = CharField()
     ticker = CharField()
     date = DateField()
-    summary_text = TextField()
+    summary_text = TextField()  # "what happened" section
+    next_steps_text = TextField(null=True)  # "what's next" section (risks/catalysts to watch)
     cited_news_ids = TextField(null=True)
     generated_at = DateTimeField()
 

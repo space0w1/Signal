@@ -159,7 +159,8 @@ user_id        INTEGER NOT NULL REFERENCES users(id),
 target_type    TEXT NOT NULL,      -- 'portfolio' | 'stock'
 ticker         TEXT NOT NULL,      -- actual ticker, or '__portfolio__' sentinel when target_type='portfolio'
 date           DATE NOT NULL,
-summary_text   TEXT NOT NULL,
+summary_text   TEXT NOT NULL,      -- "what happened" section
+next_steps_text TEXT,              -- "what's next" section (risks/catalysts to watch, not advice)
 cited_news_ids TEXT,               -- JSON array of news_items.id, ranked order; portfolio only
 generated_at   TIMESTAMP NOT NULL, -- distinguishes nightly-cron vs on-demand-fallback generation
 UNIQUE (user_id, target_type, ticker, date)

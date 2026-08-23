@@ -9,4 +9,8 @@ Holdings:
 Recent news for these holdings:
 {news_context}
 
-Write a concise (2-4 sentence) market analysis of this portfolio's current state and risks, grounded in the news above. Cite the news_id of every article you actually drew on, ranked by relevance (most relevant first). If no news is relevant, return an empty list.
+Write two short sections, each 2-3 sentences, grounded in the news above:
+1. "summary": what has actually happened recently across these holdings.
+2. "next_steps": risks, catalysts, or developments worth watching going forward. This is observational context, not investment advice — describe what could matter, not what to buy or sell.
+
+Cite the news_id of every article you drew on across both sections, ranked by relevance (most relevant first). If no news is relevant, return an empty list.

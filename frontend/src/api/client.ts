@@ -96,6 +96,7 @@ export interface Summary {
   ticker: string | null;
   date: string;
   summary: string;
+  next_steps: string;
   cited_news: NewsItem[];
   generated_at: string;
 }

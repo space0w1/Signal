@@ -20,11 +20,13 @@ class SummaryGenerationError(Exception):
 
 class PortfolioSummaryOutput(BaseModel):
     summary: str
+    next_steps: str
     cited_news_ids: list[int]
 
 
 class StockSummaryOutput(BaseModel):
     summary: str
+    next_steps: str
 
 
 def _news_context(news_items: list[NewsItem]) -> str:
@@ -44,7 +46,7 @@ def _generate(prompt: str, output_schema: type[BaseModel]) -> BaseModel:
         raise SummaryGenerationError(str(exc)) from exc
 
 
-def _generate_portfolio_summary(as_of: date) -> tuple[str, list[int]]:
+def _generate_portfolio_summary(as_of: date) -> tuple[str, str, list[int]]:
     portfolio = get_portfolio(as_of)
 
     news_items: list[NewsItem] = []
@@ -69,10 +71,10 @@ def _generate_portfolio_summary(as_of: date) -> tuple[str, list[int]]:
 
     result = _generate(prompt, PortfolioSummaryOutput)
     assert isinstance(result, PortfolioSummaryOutput)
-    return result.summary, result.cited_news_ids
+    return result.summary, result.next_steps, result.cited_news_ids
 
 
-def _generate_stock_summary(ticker: str, as_of: date) -> str:
+def _generate_stock_summary(ticker: str, as_of: date) -> tuple[str, str]:
     portfolio = get_portfolio(as_of)
     holding = next((h for h in portfolio.holdings if h.ticker == ticker), None)
     news_items = get_news_for_date(ticker, as_of)
@@ -95,7 +97,7 @@ def _generate_stock_summary(ticker: str, as_of: date) -> str:
 
     result = _generate(prompt, StockSummaryOutput)
     assert isinstance(result, StockSummaryOutput)
-    return result.summary
+    return result.summary, result.next_steps
 
 
 def get_or_generate_summary(target_type: str, ticker: str, as_of: date) -> Summary:
@@ -116,10 +118,10 @@ def get_or_generate_summary(target_type: str, ticker: str, as_of: date) -> Summa
         return cached
 
     if target_type == "portfolio":
-        summary_text, cited_ids = _generate_portfolio_summary(as_of)
+        summary_text, next_steps_text, cited_ids = _generate_portfolio_summary(as_of)
         cited_json = json.dumps(cited_ids)
     else:
-        summary_text = _generate_stock_summary(ticker, as_of)
+        summary_text, next_steps_text = _generate_stock_summary(ticker, as_of)
         cited_json = None
 
     return Summary.create(
@@ -128,6 +130,7 @@ def get_or_generate_summary(target_type: str, ticker: str, as_of: date) -> Summa
         ticker=cache_key_ticker,
         date=as_of,
         summary_text=summary_text,
+        next_steps_text=next_steps_text,
         cited_news_ids=cited_json,
         generated_at=datetime.utcnow(),
     )

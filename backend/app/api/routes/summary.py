@@ -16,6 +16,7 @@ class SummaryResponse(BaseModel):
     ticker: str | None
     date: date
     summary: str
+    next_steps: str
     cited_news: list[NewsItemResponse]
     generated_at: str
 
@@ -49,6 +50,7 @@ def read_summary(
         ticker=None if summary.target_type == "portfolio" else summary.ticker,
         date=summary.date,
         summary=summary.summary_text,
+        next_steps=summary.next_steps_text or "",
         cited_news=cited_news,
         generated_at=summary.generated_at.isoformat(),
     )
