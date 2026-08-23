@@ -9,7 +9,7 @@ class Settings(BaseSettings):
     llm_provider: str = "gemini"  # "anthropic" | "gemini"
     anthropic_api_key: str = ""
     gemini_api_key: str = ""
-    gemini_model: str = "gemini-3.7-flash"
+    gemini_model: str = "gemini-3.5-flash"
 
     class Config:
         env_file = ".env"
