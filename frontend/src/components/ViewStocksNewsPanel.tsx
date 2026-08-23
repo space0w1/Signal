@@ -36,7 +36,7 @@ export function ViewStocksNewsPanel({ holdings, date }: Props) {
   }, [tab, date, tickersKey]);
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+    <div className="flex flex-col rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
       <div className="mb-3 flex rounded-lg bg-gray-100 p-1 text-sm font-medium">
         <button
           className={`flex-1 rounded-md py-1.5 ${tab === "stocks" ? "bg-white shadow-sm" : "text-gray-500"}`}
@@ -52,7 +52,7 @@ export function ViewStocksNewsPanel({ holdings, date }: Props) {
         </button>
       </div>
 
-      <div className="flex-1 overflow-y-auto">
+      <div className="max-h-[430px] overflow-y-auto">
         {tab === "stocks" ? (
           holdings.length === 0 ? (
             <div className="text-sm text-gray-400">No holdings yet.</div>
