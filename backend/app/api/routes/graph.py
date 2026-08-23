@@ -25,7 +25,7 @@ class OverlayPointResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
     date: date
-    return_pct: float
+    pnl_pct: float
 
 
 class GraphResponse(BaseModel):

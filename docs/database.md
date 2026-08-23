@@ -62,10 +62,12 @@ CREATE INDEX idx_holdings_active ON holdings (user_id, is_active);
 -- cost-basis reduction is based on the average cost immediately
 -- before it (not the sell price — that only determines the
 -- realized gain/loss on that sale), so replaying requires
--- chronological order, not a simple SUM. transaction_date is the
--- date the buy/sell was entered into the tracker (section 2.1
--- assumption: it doesn't need to match the real-world trade date,
--- since qty/price are user-input either way).
+-- chronological order, not a simple SUM. transaction_date defaults
+-- to today when adding/selling, but can be explicitly backdated to
+-- the real-world trade date — useful when adding a position you
+-- already owned, so the graph/point-in-time queries have real
+-- history to show instead of starting flat from today. Must be
+-- on/after the holding's date_added and not in the future.
 -- ============================================================
 CREATE TABLE transactions (
 id               SERIAL PRIMARY KEY,

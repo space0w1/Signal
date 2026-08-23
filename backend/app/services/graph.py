@@ -28,7 +28,7 @@ class DailyPortfolioPoint:
 @dataclass
 class OverlayPoint:
     date: date
-    return_pct: float
+    pnl_pct: float
 
 
 def _range_start(as_of: date) -> date:
@@ -171,27 +171,22 @@ def get_stock_price_series(ticker: str, as_of: date) -> list[StockPricePoint]:
 
 
 def get_overlay_series(as_of: date) -> dict[str, list[OverlayPoint]]:
-    """Normalized % price return per currently-active holding, each series
-    starting at 0% on the later of (holding's date_added, 5yr ago) — pure
-    price movement, no FX/quantity/cost involved, since this compares
-    relative stock performance rather than portfolio value contribution."""
+    """Unrealized PnL % over time per currently-active holding — (value -
+    cost) / cost using the actual cost basis, the same figure 'View Stocks'
+    shows for as_of alone, just as a full history. Deliberately NOT price
+    movement since date_added: your cost basis is whatever you told the
+    tracker you paid, which can differ from that day's market price, so a
+    pure-price comparison could show 0% (or the wrong sign) even while
+    you're genuinely up or down relative to what you actually paid."""
     user = get_default_user()
     start = _range_start(as_of)
-    holdings = Holding.select().where(Holding.user == user, Holding.is_active == True)  # noqa: E712
+    holdings = list(Holding.select().where(Holding.user == user, Holding.is_active == True))  # noqa: E712
 
     result: dict[str, list[OverlayPoint]] = {}
     for holding in holdings:
-        range_start = max(start, holding.date_added)
-        prices = list(
-            PriceHistory.select()
-            .where(
-                PriceHistory.ticker == holding.ticker,
-                PriceHistory.date >= range_start,
-                PriceHistory.date <= as_of,
-            )
-            .order_by(PriceHistory.date)
-        )
-        if not prices:
+        axis = _build_axis([holding.ticker], max(start, holding.date_added), as_of)
+
+        if not axis:
             # No trading day has occurred since this holding was added yet
             # (e.g. added today, but price data lags a day or two behind
             # without a live nightly cron). Fall back to the latest known
@@ -204,12 +199,13 @@ def get_overlay_series(as_of: date) -> dict[str, list[OverlayPoint]]:
                 .first()
             )
             if latest is not None:
-                result[holding.ticker] = [OverlayPoint(date=as_of, return_pct=0.0)]
+                result[holding.ticker] = [OverlayPoint(date=as_of, pnl_pct=0.0)]
             continue
 
-        base_price = prices[0].close_price
+        points = _holding_daily_series(holding, axis, as_of)
         result[holding.ticker] = [
-            OverlayPoint(date=p.date, return_pct=((p.close_price / base_price) - 1) * 100) for p in prices
+            OverlayPoint(date=p.date, pnl_pct=(p.unrealized_pnl / p.cost_sgd * 100) if p.cost_sgd else 0.0)
+            for p in points
         ]
 
     return result

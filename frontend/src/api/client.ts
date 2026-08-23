@@ -61,7 +61,7 @@ export interface AggregatePoint {
 
 export interface OverlayPoint {
   date: string;
-  return_pct: number;
+  pnl_pct: number;
 }
 
 export interface PortfolioGraph {
@@ -117,6 +117,7 @@ export function addHolding(payload: {
   region: Region;
   qty: number;
   cost: number;
+  date?: string;
 }): Promise<Holding> {
   return request<Holding>("/holdings", {
     method: "POST",
@@ -126,7 +127,7 @@ export function addHolding(payload: {
 
 export function sellHolding(
   ticker: string,
-  payload: { qty: number; price: number },
+  payload: { qty: number; price: number; date?: string },
 ): Promise<SellResult> {
   return request<SellResult>(`/holdings/${encodeURIComponent(ticker)}/sell`, {
     method: "POST",

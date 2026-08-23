@@ -12,12 +12,14 @@ export function ModifyPortfolioModal({ holdings, onClose, onChanged }: Props) {
   const [region, setRegion] = useState<Region>("US");
   const [qty, setQty] = useState("");
   const [cost, setCost] = useState("");
+  const [purchaseDate, setPurchaseDate] = useState("");
   const [addError, setAddError] = useState<string | null>(null);
   const [addLoading, setAddLoading] = useState(false);
 
   const [sellTicker, setSellTicker] = useState<string | null>(null);
   const [sellQty, setSellQty] = useState("");
   const [sellPrice, setSellPrice] = useState("");
+  const [sellDate, setSellDate] = useState("");
   const [sellError, setSellError] = useState<string | null>(null);
   const [sellLoading, setSellLoading] = useState(false);
 
@@ -26,10 +28,17 @@ export function ModifyPortfolioModal({ holdings, onClose, onChanged }: Props) {
     setAddError(null);
     setAddLoading(true);
     try {
-      await addHolding({ symbol: symbol.trim(), region, qty: Number(qty), cost: Number(cost) });
+      await addHolding({
+        symbol: symbol.trim(),
+        region,
+        qty: Number(qty),
+        cost: Number(cost),
+        date: purchaseDate || undefined,
+      });
       setSymbol("");
       setQty("");
       setCost("");
+      setPurchaseDate("");
       onChanged();
     } catch (err) {
       setAddError(err instanceof Error ? err.message : "Failed to add holding");
@@ -42,10 +51,15 @@ export function ModifyPortfolioModal({ holdings, onClose, onChanged }: Props) {
     setSellError(null);
     setSellLoading(true);
     try {
-      await sellHolding(ticker, { qty: Number(sellQty), price: Number(sellPrice) });
+      await sellHolding(ticker, {
+        qty: Number(sellQty),
+        price: Number(sellPrice),
+        date: sellDate || undefined,
+      });
       setSellTicker(null);
       setSellQty("");
       setSellPrice("");
+      setSellDate("");
       onChanged();
     } catch (err) {
       setSellError(err instanceof Error ? err.message : "Failed to sell holding");
@@ -109,7 +123,15 @@ export function ModifyPortfolioModal({ holdings, onClose, onChanged }: Props) {
               required
               className="rounded-md border border-gray-200 px-2 py-1.5 text-sm"
             />
+            <input
+              type="date"
+              value={purchaseDate}
+              onChange={(e) => setPurchaseDate(e.target.value)}
+              title="Purchase date (defaults to today)"
+              className="col-span-2 rounded-md border border-gray-200 px-2 py-1.5 text-sm text-gray-600"
+            />
           </div>
+          <div className="text-xs text-gray-400">Purchase date defaults to today if left blank.</div>
           {addError && <div className="text-xs text-red-600">{addError}</div>}
           <button
             type="submit"
@@ -163,7 +185,15 @@ export function ModifyPortfolioModal({ holdings, onClose, onChanged }: Props) {
                         onChange={(e) => setSellPrice(e.target.value)}
                         className="rounded-md border border-gray-200 px-2 py-1.5 text-sm"
                       />
+                      <input
+                        type="date"
+                        value={sellDate}
+                        onChange={(e) => setSellDate(e.target.value)}
+                        title="Sale date (defaults to today)"
+                        className="col-span-2 rounded-md border border-gray-200 px-2 py-1.5 text-sm text-gray-600"
+                      />
                     </div>
+                    <div className="text-xs text-gray-400">Sale date defaults to today if left blank.</div>
                     {sellError && <div className="text-xs text-red-600">{sellError}</div>}
                     <button
                       type="button"

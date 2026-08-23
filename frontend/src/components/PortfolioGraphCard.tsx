@@ -128,7 +128,7 @@ function OverlayChart({ series }: { series: Record<string, OverlayPoint[]> }) {
       for (const p of points) dateSet.add(p.date);
     }
     const dates = Array.from(dateSet).sort();
-    const lookups = tickers.map((t) => new Map(series[t].map((p) => [p.date, p.return_pct])));
+    const lookups = tickers.map((t) => new Map(series[t].map((p) => [p.date, p.pnl_pct])));
 
     return dates.map((date) => {
       const row: Record<string, string | number | null> = { date };
