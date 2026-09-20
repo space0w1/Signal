@@ -1,5 +1,12 @@
-import { useState } from "react";
-import { addHolding, sellHolding, type HoldingPnL, type Region } from "../api/client";
+import { useEffect, useRef, useState } from "react";
+import {
+  addHolding,
+  searchSymbols,
+  sellHolding,
+  type HoldingPnL,
+  type Region,
+  type SymbolMatch,
+} from "../api/client";
 
 interface Props {
   holdings: HoldingPnL[];
@@ -10,6 +17,13 @@ interface Props {
 export function ModifyPortfolioModal({ holdings, onClose, onChanged }: Props) {
   const [symbol, setSymbol] = useState("");
   const [region, setRegion] = useState<Region>("US");
+  const [matches, setMatches] = useState<SymbolMatch[]>([]);
+  const [searching, setSearching] = useState(false);
+  const [showMatches, setShowMatches] = useState(false);
+  // Set when a suggestion is picked, so the effect below doesn't immediately re-search
+  // for the exact symbol it just filled in and reopen the dropdown.
+  const justPicked = useRef(false);
+
   const [qty, setQty] = useState("");
   const [cost, setCost] = useState("");
   const [purchaseDate, setPurchaseDate] = useState("");
@@ -22,6 +36,49 @@ export function ModifyPortfolioModal({ holdings, onClose, onChanged }: Props) {
   const [sellDate, setSellDate] = useState("");
   const [sellError, setSellError] = useState<string | null>(null);
   const [sellLoading, setSellLoading] = useState(false);
+
+  // Debounced symbol lookup. 250ms is short enough to feel live while collapsing a
+  // burst of keystrokes into one upstream Yahoo call, and the AbortController drops
+  // the response of any request a newer keystroke has superseded — otherwise a slow
+  // early request can land last and overwrite the results for what was actually typed.
+  useEffect(() => {
+    if (justPicked.current) {
+      justPicked.current = false;
+      return;
+    }
+    const q = symbol.trim();
+    if (q.length < 2) {
+      setMatches([]);
+      setSearching(false);
+      return;
+    }
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      setSearching(true);
+      searchSymbols(q, controller.signal)
+        .then((rs) => {
+          setMatches(rs);
+          setShowMatches(true);
+        })
+        .catch(() => {
+          // Includes the abort of a superseded request — leave the current list alone
+          // rather than flashing "no matches" while a newer search is still in flight.
+        })
+        .finally(() => setSearching(false));
+    }, 250);
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [symbol]);
+
+  function pickMatch(m: SymbolMatch) {
+    justPicked.current = true;
+    setSymbol(m.symbol);
+    setRegion(m.region); // straight from Yahoo's exchange field, not guessed from the suffix
+    setShowMatches(false);
+    setMatches([]);
+  }
 
   async function handleAdd(e: React.FormEvent) {
     e.preventDefault();
@@ -36,6 +93,8 @@ export function ModifyPortfolioModal({ holdings, onClose, onChanged }: Props) {
         date: purchaseDate || undefined,
       });
       setSymbol("");
+      setMatches([]);
+      setShowMatches(false);
       setQty("");
       setCost("");
       setPurchaseDate("");
@@ -87,13 +146,51 @@ export function ModifyPortfolioModal({ holdings, onClose, onChanged }: Props) {
         <form onSubmit={handleAdd} className="mb-5 space-y-2 rounded-lg border border-gray-200 p-3">
           <div className="text-sm font-medium text-gray-700">Add Holding</div>
           <div className="grid grid-cols-2 gap-2">
-            <input
-              placeholder="Symbol"
-              value={symbol}
-              onChange={(e) => setSymbol(e.target.value)}
-              required
-              className="rounded-md border border-gray-200 px-2 py-1.5 text-sm"
-            />
+            {/* relative wrapper so the suggestion list can overlay the fields below
+                instead of pushing the rest of the form down as you type */}
+            <div className="relative">
+              <input
+                placeholder="Symbol or company"
+                value={symbol}
+                onChange={(e) => setSymbol(e.target.value)}
+                onFocus={() => matches.length > 0 && setShowMatches(true)}
+                // Escape dismisses the list without clearing what's typed. Blur is
+                // delayed because mousedown on a suggestion fires blur first, which
+                // would unmount the list before the click could register.
+                onKeyDown={(e) => e.key === "Escape" && setShowMatches(false)}
+                onBlur={() => setTimeout(() => setShowMatches(false), 120)}
+                autoComplete="off"
+                required
+                className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm"
+              />
+              {searching && (
+                <span className="absolute right-2 top-1.5 text-xs text-gray-400">…</span>
+              )}
+              {showMatches && matches.length > 0 && (
+                <ul className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg">
+                  {matches.map((m) => (
+                    <li key={`${m.symbol}-${m.exchange}`}>
+                      <button
+                        type="button"
+                        onClick={() => pickMatch(m)}
+                        className="flex w-full items-baseline justify-between gap-2 px-2 py-1.5 text-left text-xs hover:bg-blue-50"
+                      >
+                        <span className="font-medium text-gray-800">{m.symbol}</span>
+                        <span className="min-w-0 flex-1 truncate text-gray-500">{m.name}</span>
+                        <span className="shrink-0 rounded bg-gray-100 px-1 text-gray-600">
+                          {m.region}
+                        </span>
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              )}
+              {showMatches && !searching && symbol.trim().length >= 2 && matches.length === 0 && (
+                <div className="absolute z-10 mt-1 w-full rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-500 shadow-lg">
+                  No US/HK/SG match — you can still type an exact ticker.
+                </div>
+              )}
+            </div>
             <select
               value={region}
               onChange={(e) => setRegion(e.target.value as Region)}

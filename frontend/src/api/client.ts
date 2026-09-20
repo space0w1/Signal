@@ -50,6 +50,14 @@ export interface SellResult {
   sale_realized_pnl: number;
 }
 
+export interface SymbolMatch {
+  symbol: string;
+  name: string;
+  region: Region;
+  exchange: string;
+  quote_type: string;
+}
+
 export type GraphMode = "aggregate" | "overlay";
 
 export interface AggregatePoint {
@@ -166,4 +174,8 @@ export function sellHolding(
     method: "POST",
     body: JSON.stringify(payload),
   });
+}
+
+export function searchSymbols(q: string, signal?: AbortSignal): Promise<SymbolMatch[]> {
+  return request<SymbolMatch[]>(`/symbols/search?q=${encodeURIComponent(q)}`, { signal });
 }
