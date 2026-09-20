@@ -177,19 +177,28 @@ def get_stock_graph_series(ticker: str, as_of: date) -> list[StockGraphPoint]:
     pnl_pct_by_date: dict[date, float] = {}
     pnl_amount_by_date: dict[date, float] = {}
     if holding is not None:
-        axis = _build_axis([ticker], max(start, holding.date_added), as_of)
+        clamp_start = max(start, holding.date_added)
+        axis = _build_axis([ticker], clamp_start, as_of)
 
-        # The clamp above yields an empty range when no trading day falls between
-        # date_added and as_of — buy on a Saturday and there is no session to plot
-        # against until Monday's close publishes. Left empty, every pnl_pct stays
-        # None and the UI reads that as "not currently held".
+        # The clamp yields an empty range in two very different situations, and only
+        # one of them deserves a fallback:
         #
-        # So value the position as of as_of (the carried-forward last close is a real
-        # price, and the transaction still applies since transaction_date <= as_of),
-        # but key the result to that last close's own date: the points below are built
-        # from `prices`, so a key of as_of would never be looked up.
-        fallback_date = prices[-1].date if (not axis and prices) else None
-        for p in _holding_daily_series(holding, axis or [as_of], as_of):
+        #   a) held by as_of, but no trading day since — bought on a Saturday, and
+        #      Monday's close has not published yet. Worth valuing: the carried-forward
+        #      last close is a real price and the purchase still applies. Without this
+        #      every pnl_pct stays None and the UI reads "not currently held".
+        #   b) as_of predates date_added — the position did not exist yet. pnl_pct MUST
+        #      stay None here, or picking a stock and then an earlier date reports a
+        #      fabricated 0.00% return on something never owned.
+        #
+        # clamp_start <= as_of distinguishes them.
+        if not axis and clamp_start <= as_of:
+            axis = [as_of]
+
+        # Key the fallback point to the latest close's own date, not as_of: the points
+        # below are built from `prices`, so a key of as_of would never be looked up.
+        fallback_date = prices[-1].date if (len(axis) == 1 and axis[0] == as_of and prices) else None
+        for p in _holding_daily_series(holding, axis, as_of):
             key = fallback_date or p.date
             pnl_pct_by_date[key] = (p.unrealized_pnl / p.cost_sgd * 100) if p.cost_sgd else 0.0
             pnl_amount_by_date[key] = p.unrealized_pnl
@@ -234,12 +243,16 @@ def get_overlay_series(as_of: date) -> dict[str, list[OverlayPoint]]:
 
     result: dict[str, list[OverlayPoint]] = {}
     for holding in holdings:
-        # `or [as_of]`: see get_stock_graph_series — no trading day between date_added
-        # and as_of (bought on a weekend or holiday). Previously this branch anchored
-        # the ticker at a hardcoded 0%, which understated a real position: the carried
-        # -forward close is a genuine price to value the holding against, so compute
-        # the actual return instead of pretending it is flat.
-        axis = _build_axis([holding.ticker], max(start, holding.date_added), as_of) or [as_of]
+        # See get_stock_graph_series for the two cases. Fall back only when the holding
+        # existed by as_of but no trading day has happened since (weekend purchase);
+        # a holding added after as_of is omitted from the response entirely rather than
+        # drawn at a fabricated 0%.
+        clamp_start = max(start, holding.date_added)
+        axis = _build_axis([holding.ticker], clamp_start, as_of)
+        if not axis:
+            if clamp_start > as_of:
+                continue
+            axis = [as_of]
 
         points = _holding_daily_series(holding, axis, as_of)
         result[holding.ticker] = [
