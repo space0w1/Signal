@@ -20,7 +20,7 @@ Bound to your Tailscale interface only. No auth (single user, Tailscale gates ac
 | Method | Path | Query params | Returns |
 |---|---|---|---|
 | GET | `/api/portfolio` | `date` (optional, defaults to today) | Aggregate portfolio value, cost, unrealized PnL (on shares still held), and realized PnL (cumulative, from sells) as of that date, plus the holdings list sorted by total PnL (realized+unrealized) descending (powers both the Value/PnL box and the "View Stocks" toggle in Portfolio mode) |
-| GET | `/api/stock/<ticker>` | `date` (optional) | That stock's current price × qty, cost basis × qty, PnL amount + % |
+| GET | `/api/stock/<ticker>` | `date` (optional) | **Not implemented.** That stock's current price × qty, cost basis × qty, PnL amount + %. In practice `GET /api/portfolio` already returns every per-holding figure the UI needs, so this was never built. |
 
 ### Graph
 
@@ -39,18 +39,38 @@ Bound to your Tailscale interface only. No auth (single user, Tailscale gates ac
 
 ### Navigation Support (dropdown / date-picker constraints)
 
+> **Not implemented.** Both endpoints below are still a design sketch. The dropdown half
+> works incidentally — `GET /api/portfolio?date=` already filters on `date_added <= date`,
+> and the frontend builds its ticker list from that response — but the date picker has no
+> `min`/`max`, and `selected` is not reset when the chosen ticker drops out of range, so a
+> ticker can stay selected for a date before it was held.
+
 | Method | Path | Query params | Returns |
 |---|---|---|---|
 | GET | `/api/valid-tickers` | `date` | Tickers that existed in the portfolio as of that date — powers the dropdown when a date is selected |
 | GET | `/api/valid-dates` | `ticker` | That ticker's valid date range (its own start date through today) — powers the date picker when a stock is selected |
 
+### Symbol Search (Modify Portfolio autocomplete)
+
+| Method | Path | Query params | Returns |
+|---|---|---|---|
+| GET | `/api/symbols/search` | `q` (company name or ticker, 1-64 chars, required) | Up to 5 matching symbols, Yahoo's own relevance order, each as `{ symbol, name, region, exchange, quote_type }`. Powers the autocomplete in the Add Holding form: picking a result fills the symbol, and the region shown is the one the backend will resolve. Backed by `yfinance`'s Yahoo search (no key), filtered two ways — **instrument**: equities and ETFs only, since futures, options, mutual funds and money-market instruments have no daily close the portfolio can value; **market**: only exchanges whose currency converts to SGD, mapped from Yahoo's `exchange` code (`NMS`/`NAS`/`NGM`/`NCM`/`NYQ`/`ASE`/`PCX`/`BTS` → US, `HKG` → HK, `SES` → SG). Everything else is dropped, so a search for "visa" returns `V` alone rather than also offering the Buenos Aires, Vienna, Bangkok and NSE listings Yahoo includes — none of which have a conversion path. US OTC/pink-sheet (`PNK`) is excluded too: those listings carry thin history and mostly duplicate a primary listing as an ADR. Note US tickers need no exchange disambiguation (a bare `AAPL` is unique to Yahoo, and every US exchange trades in USD) — the human-readable `exchange` field is returned purely so similarly-named results can be told apart in the dropdown, and is neither sent back nor stored. Returns an empty list for a blank query or no matches; 502 if the upstream search is unavailable. The frontend debounces by 250ms, requires 2+ characters, and aborts superseded requests. |
+
 ### Portfolio Management (Modify Portfolio modal)
 
 | Method | Path | Body / Query | Effect |
 |---|---|---|---|
-| POST | `/api/holdings` | body: `{ symbol, region, qty, cost, date }` (`region` is `US`\|`HK`\|`SG`, explicit — not guessed from the ticker suffix, since e.g. a typo'd `.SG` instead of `.SI` silently produced a wrong-currency holding; `date` is the purchase date, optional, defaults to today — lets you backdate a position you already owned before adding it to the tracker, so the graph/point-in-time queries have real data to show instead of starting flat from today) | Records a buy transaction; a new holding if the symbol isn't already held, or an addition to an existing one otherwise (for an existing holding, `date` must be on/after the date it was first added — can't buy "before" the tracked position started). Triggers 5yr backfill if it's a brand-new ticker. Fails with 422 if the ticker has no price data, if `region` doesn't match the region the ticker was originally added under, or if `date` is in the future or before the holding's start. |
+| POST | `/api/holdings` | body: `{ symbol, qty, cost, date }` (**no `region`** — it is resolved from the currency Yahoo reports for the symbol, taken off the same `history()` call the backfill already makes, and a region sent by a caller is ignored. This replaces the earlier explicit-region design: that existed because guessing from the ticker *suffix* was unreliable, and asking Yahoo is not guessing. It also closes a failure the suffix rule could not: a caller pairing a Vienna listing with `region=US` stored euro prices as USD and converted them at the USD rate — wrong valuations with nothing failing. `date` is the purchase date, optional, defaults to today — lets you backdate a position you already owned before adding it to the tracker, so the graph/point-in-time queries have real data to show instead of starting flat from today) | Records a buy transaction; a new holding if the symbol isn't already held, or an addition to an existing one otherwise (for an existing holding, `date` must be on/after the date it was first added — can't buy "before" the tracked position started). Triggers 5yr backfill if it's a brand-new ticker. Fails with 422 if the ticker has no price data, if it trades in a currency the app cannot convert to SGD (only USD, HKD and SGD have a conversion path — see `fx_rates`), if the resolved region disagrees with the region the ticker was originally tracked under, or if `date` is in the future or before the holding's start. The response reports the resolved `exchange`/`currency`, so the caller learns which market it landed in. |
 | POST | `/api/holdings/<ticker>/sell` | body: `{ qty, price, date }` (`date` optional, defaults to today) | Records a sell transaction at the given price (average-cost method: realized gain/loss = `qty × (price − average_cost_at_time_of_sale)`), where "time of sale" is `date`, not necessarily today — the average cost and quantity available are computed as of `date` itself (via a chronological replay), not from today's totals, so a backdated sell inserted before later transactions is still accounted correctly. If the sale brings the position to zero, the holding is automatically soft-deleted (`is_active=false`, `removed_date` stamped) — same effect as the old bare "remove", but now with a real sale price backing the PnL. A partial sell just reduces `total_quantity`/`total_cost` and stays active. Fails with 404 if there's no active holding for the ticker, 422 if `qty` exceeds what was held as of `date`, or if `date` is in the future or before the holding's start. |
-| POST | `/api/price-history/<ticker>/backfill` | query: `region` | Standalone 5yr price backfill for a ticker, independent of adding a holding — useful for retrying after fixing a wrong symbol. Fails with 422 if the ticker has no price data. |
+| POST | `/api/price-history/<ticker>/backfill` | — | Standalone 5yr price backfill for a ticker, independent of adding a holding — useful for retrying after fixing a wrong symbol, or for filling a gap left by missed nightly runs (it upserts with `on_conflict_ignore`, so existing rows are kept and only missing dates are added). No `region` param: the region is derived from the reported currency, same as `POST /api/holdings`. Fails with 422 if the ticker has no price data, or if it trades in an unsupported currency. |
+
+| POST | `/api/price-history/<ticker>/refresh` | — | Cheap nightly counterpart to `backfill`: fetches the last 5 **trading** days and upserts, *overwriting* `close_price` where a row already exists. The 5-day window covers weekends, exchange holidays and a skipped cron run, so small gaps self-heal without a separate repair path; the overwrite is what corrects a same-day `backfill` that captured an intraday price as if it were the close. Beyond 5 trading days nothing recovers automatically — use `backfill` for a wider hole. The ticker must already be tracked (the currency is read from its existing rows); 422 otherwise. Called once per active ticker by the nightly job. Note `rows_inserted` counts rows *fetched and upserted*, not newly inserted, so it reads 5 every night regardless of what changed. |
+
+### Health
+
+| Method | Path | Query params | Returns |
+|---|---|---|---|
+| GET | `/api/health` | — | `{"status": "ok"}`. Liveness only — it does not touch the database, so it stays 200 even if Postgres is down. |
 
 ### FX Rates
 

@@ -4,7 +4,6 @@ import {
   searchSymbols,
   sellHolding,
   type HoldingPnL,
-  type Region,
   type SymbolMatch,
 } from "../api/client";
 
@@ -16,7 +15,9 @@ interface Props {
 
 export function ModifyPortfolioModal({ holdings, onClose, onChanged }: Props) {
   const [symbol, setSymbol] = useState("");
-  const [region, setRegion] = useState<Region>("US");
+  // Display only — the backend resolves the region itself. Shown so a picked
+  // suggestion confirms which market it came from.
+  const [pickedRegion, setPickedRegion] = useState<string | null>(null);
   const [matches, setMatches] = useState<SymbolMatch[]>([]);
   const [searching, setSearching] = useState(false);
   const [showMatches, setShowMatches] = useState(false);
@@ -75,7 +76,7 @@ export function ModifyPortfolioModal({ holdings, onClose, onChanged }: Props) {
   function pickMatch(m: SymbolMatch) {
     justPicked.current = true;
     setSymbol(m.symbol);
-    setRegion(m.region); // straight from Yahoo's exchange field, not guessed from the suffix
+    setPickedRegion(m.region); // display only; the backend resolves it again authoritatively
     setShowMatches(false);
     setMatches([]);
   }
@@ -87,12 +88,12 @@ export function ModifyPortfolioModal({ holdings, onClose, onChanged }: Props) {
     try {
       await addHolding({
         symbol: symbol.trim(),
-        region,
         qty: Number(qty),
         cost: Number(cost),
         date: purchaseDate || undefined,
       });
       setSymbol("");
+      setPickedRegion(null);
       setMatches([]);
       setShowMatches(false);
       setQty("");
@@ -152,7 +153,10 @@ export function ModifyPortfolioModal({ holdings, onClose, onChanged }: Props) {
               <input
                 placeholder="Symbol or company"
                 value={symbol}
-                onChange={(e) => setSymbol(e.target.value)}
+                onChange={(e) => {
+                  setSymbol(e.target.value);
+                  setPickedRegion(null);
+                }}
                 onFocus={() => matches.length > 0 && setShowMatches(true)}
                 // Escape dismisses the list without clearing what's typed. Blur is
                 // delayed because mousedown on a suggestion fires blur first, which
@@ -191,15 +195,13 @@ export function ModifyPortfolioModal({ holdings, onClose, onChanged }: Props) {
                 </div>
               )}
             </div>
-            <select
-              value={region}
-              onChange={(e) => setRegion(e.target.value as Region)}
-              className="rounded-md border border-gray-200 px-2 py-1.5 text-sm"
-            >
-              <option value="US">US</option>
-              <option value="HK">HK</option>
-              <option value="SG">SG</option>
-            </select>
+            <div className="flex items-center rounded-md border border-dashed border-gray-200 px-2 py-1.5 text-sm text-gray-500">
+              {pickedRegion ? (
+                <span className="font-medium text-gray-700">{pickedRegion}</span>
+              ) : (
+                <span className="text-xs">Market: auto</span>
+              )}
+            </div>
             <input
               placeholder="Qty"
               type="number"

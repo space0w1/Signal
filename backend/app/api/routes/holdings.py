@@ -1,5 +1,4 @@
 from datetime import date as Date
-from typing import Literal
 
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel, ConfigDict, Field
@@ -14,19 +13,19 @@ from app.services.holdings import (
 )
 from app.services.market_data import (
     UnknownTickerError,
+    UnsupportedMarketError,
     backfill_price_history,
-    currency_for_region,
     refresh_price_history,
 )
 
 router = APIRouter(tags=["holdings"])
 
-Region = Literal["US", "HK", "SG"]
-
-
 class AddHoldingRequest(BaseModel):
+    # No `region` field: it is resolved from the currency Yahoo reports for the symbol
+    # (see services/market_data.region_for_currency). Accepting it let a caller pair a
+    # Vienna listing with region='US', storing euro prices as USD — wrong valuations
+    # with nothing failing. The response still reports the region that was resolved.
     symbol: str
-    region: Region
     qty: float = Field(gt=0)
     cost: float = Field(gt=0)
     date: Date | None = None  # purchase date; defaults to today if omitted
@@ -74,8 +73,13 @@ class BackfillResponse(BaseModel):
 def create_holding(payload: AddHoldingRequest) -> HoldingResponse:
     ticker = payload.symbol.upper()
     try:
-        holding = add_holding(ticker, payload.qty, payload.cost, payload.region, payload.date)
-    except (UnknownTickerError, RegionMismatchError, InvalidTransactionDateError) as exc:
+        holding = add_holding(ticker, payload.qty, payload.cost, payload.date)
+    except (
+        UnknownTickerError,
+        UnsupportedMarketError,
+        RegionMismatchError,
+        InvalidTransactionDateError,
+    ) as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return HoldingResponse.model_validate(holding)
 
@@ -106,12 +110,15 @@ def sell(ticker: str, payload: SellHoldingRequest) -> SellHoldingResponse:
 
 
 @router.post("/price-history/{ticker}/backfill", response_model=BackfillResponse)
-def trigger_backfill(ticker: str, region: Region) -> BackfillResponse:
+def trigger_backfill(ticker: str) -> BackfillResponse:
+    """Region is no longer a query param — the backfill derives it from the currency
+    Yahoo reports, the same way POST /holdings does."""
     ticker = ticker.upper()
-    currency = currency_for_region(region)
     try:
-        rows_inserted = backfill_price_history(ticker, currency)
+        rows_inserted, _region, _currency = backfill_price_history(ticker)
     except UnknownTickerError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    except UnsupportedMarketError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return BackfillResponse(ticker=ticker, rows_inserted=rows_inserted)
 

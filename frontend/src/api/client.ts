@@ -153,9 +153,10 @@ export function getSummary(target: string, date: string): Promise<Summary> {
   return request<Summary>(`/summary?target=${encodeURIComponent(target)}&date=${date}`);
 }
 
+// No `region`: the backend resolves it from the currency Yahoo reports for the symbol,
+// so it cannot be set to something inconsistent with the ticker.
 export function addHolding(payload: {
   symbol: string;
-  region: Region;
   qty: number;
   cost: number;
   date?: string;

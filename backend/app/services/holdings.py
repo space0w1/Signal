@@ -3,7 +3,11 @@ from dataclasses import dataclass
 from datetime import date
 
 from app.models import Holding, NewsItem, PriceHistory, Transaction, User
-from app.services.market_data import backfill_price_history, currency_for_region
+from app.services.market_data import (
+    CURRENCY_REGION,
+    UnsupportedMarketError,
+    backfill_price_history,
+)
 from app.services.news import refresh_news
 from app.services.transactions import refresh_holding_cache, replay_transactions
 
@@ -52,22 +56,33 @@ def add_holding(
     ticker: str,
     qty: float,
     cost: float,
-    region: str,
     purchase_date: date | None = None,
 ) -> Holding:
+    """Region is deliberately NOT a parameter: it is derived from the currency Yahoo
+    reports for the ticker (see market_data.region_for_currency). A caller-supplied
+    region could be wrong in a way nothing detects — a Vienna listing declared 'US'
+    stores euro prices as USD and converts them at the USD rate."""
     today = date.today()
     purchase_date = purchase_date or today
     if purchase_date > today:
         raise InvalidTransactionDateError(f"Purchase date {purchase_date} is in the future")
 
     user = get_default_user()
-    currency = currency_for_region(region)
-    is_new_ticker = not PriceHistory.select().where(PriceHistory.ticker == ticker).exists()
+    existing_price = PriceHistory.select().where(PriceHistory.ticker == ticker).first()
 
-    # Backfill before touching the holdings table: if the ticker is invalid,
-    # fail loudly here rather than leaving behind a holding with no price data.
-    if is_new_ticker:
-        backfill_price_history(ticker, currency)
+    # Backfill before touching the holdings table: if the ticker is invalid, fail loudly
+    # here rather than leaving behind a holding with no price data. The backfill is also
+    # what tells us the region, so for an untracked ticker it has to run first; for one
+    # already tracked, the stored rows already carry the currency it was resolved to.
+    if existing_price is None:
+        _, region, currency = backfill_price_history(ticker)
+    else:
+        currency = existing_price.currency
+        region = CURRENCY_REGION.get(currency)
+        if region is None:
+            raise UnsupportedMarketError(
+                f"'{ticker}' has stored prices in {currency}, which is no longer supported"
+            )
 
     # Seed today's news if we have none for this ticker yet. Covers a brand-new
     # ticker and one being re-added after being sold out (the nightly job only
