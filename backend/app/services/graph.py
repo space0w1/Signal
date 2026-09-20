@@ -178,9 +178,21 @@ def get_stock_graph_series(ticker: str, as_of: date) -> list[StockGraphPoint]:
     pnl_amount_by_date: dict[date, float] = {}
     if holding is not None:
         axis = _build_axis([ticker], max(start, holding.date_added), as_of)
-        for p in _holding_daily_series(holding, axis, as_of):
-            pnl_pct_by_date[p.date] = (p.unrealized_pnl / p.cost_sgd * 100) if p.cost_sgd else 0.0
-            pnl_amount_by_date[p.date] = p.unrealized_pnl
+
+        # The clamp above yields an empty range when no trading day falls between
+        # date_added and as_of — buy on a Saturday and there is no session to plot
+        # against until Monday's close publishes. Left empty, every pnl_pct stays
+        # None and the UI reads that as "not currently held".
+        #
+        # So value the position as of as_of (the carried-forward last close is a real
+        # price, and the transaction still applies since transaction_date <= as_of),
+        # but key the result to that last close's own date: the points below are built
+        # from `prices`, so a key of as_of would never be looked up.
+        fallback_date = prices[-1].date if (not axis and prices) else None
+        for p in _holding_daily_series(holding, axis or [as_of], as_of):
+            key = fallback_date or p.date
+            pnl_pct_by_date[key] = (p.unrealized_pnl / p.cost_sgd * 100) if p.cost_sgd else 0.0
+            pnl_amount_by_date[key] = p.unrealized_pnl
 
     return [
         StockGraphPoint(
@@ -222,23 +234,12 @@ def get_overlay_series(as_of: date) -> dict[str, list[OverlayPoint]]:
 
     result: dict[str, list[OverlayPoint]] = {}
     for holding in holdings:
-        axis = _build_axis([holding.ticker], max(start, holding.date_added), as_of)
-
-        if not axis:
-            # No trading day has occurred since this holding was added yet
-            # (e.g. added today, but price data lags a day or two behind
-            # without a live nightly cron). Fall back to the latest known
-            # price so the ticker still appears on the chart, anchored at 0%
-            # for today, instead of silently vanishing from the response.
-            latest = (
-                PriceHistory.select()
-                .where(PriceHistory.ticker == holding.ticker, PriceHistory.date <= as_of)
-                .order_by(PriceHistory.date.desc())
-                .first()
-            )
-            if latest is not None:
-                result[holding.ticker] = [OverlayPoint(date=as_of, pnl_pct=0.0)]
-            continue
+        # `or [as_of]`: see get_stock_graph_series — no trading day between date_added
+        # and as_of (bought on a weekend or holiday). Previously this branch anchored
+        # the ticker at a hardcoded 0%, which understated a real position: the carried
+        # -forward close is a genuine price to value the holding against, so compute
+        # the actual return instead of pretending it is flat.
+        axis = _build_axis([holding.ticker], max(start, holding.date_added), as_of) or [as_of]
 
         points = _holding_daily_series(holding, axis, as_of)
         result[holding.ticker] = [
