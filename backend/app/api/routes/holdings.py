@@ -12,7 +12,12 @@ from app.services.holdings import (
     add_holding,
     sell_holding,
 )
-from app.services.market_data import UnknownTickerError, backfill_price_history, currency_for_region
+from app.services.market_data import (
+    UnknownTickerError,
+    backfill_price_history,
+    currency_for_region,
+    refresh_price_history,
+)
 
 router = APIRouter(tags=["holdings"])
 
@@ -106,6 +111,16 @@ def trigger_backfill(ticker: str, region: Region) -> BackfillResponse:
     currency = currency_for_region(region)
     try:
         rows_inserted = backfill_price_history(ticker, currency)
+    except UnknownTickerError as exc:
+        raise HTTPException(status_code=422, detail=str(exc)) from exc
+    return BackfillResponse(ticker=ticker, rows_inserted=rows_inserted)
+
+
+@router.post("/price-history/{ticker}/refresh", response_model=BackfillResponse)
+def trigger_price_refresh(ticker: str) -> BackfillResponse:
+    ticker = ticker.upper()
+    try:
+        rows_inserted = refresh_price_history(ticker)
     except UnknownTickerError as exc:
         raise HTTPException(status_code=422, detail=str(exc)) from exc
     return BackfillResponse(ticker=ticker, rows_inserted=rows_inserted)

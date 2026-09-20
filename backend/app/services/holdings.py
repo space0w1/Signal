@@ -1,8 +1,10 @@
+from contextlib import suppress
 from dataclasses import dataclass
 from datetime import date
 
-from app.models import Holding, PriceHistory, Transaction, User
+from app.models import Holding, NewsItem, PriceHistory, Transaction, User
 from app.services.market_data import backfill_price_history, currency_for_region
+from app.services.news import refresh_news
 from app.services.transactions import refresh_holding_cache, replay_transactions
 
 DEFAULT_USER_ID = 1
@@ -31,6 +33,21 @@ def get_default_user() -> User:
     return user
 
 
+def list_tracked_tickers() -> list[str]:
+    """Tickers with a currently-active holding — what the nightly job refreshes.
+    Closed-out positions are deliberately excluded: their quantity is zero from
+    the closing sale onward, so a fresh price would change nothing on any chart
+    or valuation. Their historical rows still matter and are never touched."""
+    user = get_default_user()
+    rows = (
+        Holding.select(Holding.ticker)
+        .where(Holding.user == user, Holding.is_active == True)  # noqa: E712
+        .distinct()
+        .order_by(Holding.ticker)
+    )
+    return [row.ticker for row in rows]
+
+
 def add_holding(
     ticker: str,
     qty: float,
@@ -51,6 +68,20 @@ def add_holding(
     # fail loudly here rather than leaving behind a holding with no price data.
     if is_new_ticker:
         backfill_price_history(ticker, currency)
+
+    # Seed today's news if we have none for this ticker yet. Covers a brand-new
+    # ticker and one being re-added after being sold out (the nightly job only
+    # refreshes active holdings, so an inactive ticker's news went stale). Without
+    # this, the ticker's first summary has nothing to work with, isn't cached
+    # (see get_or_generate_summary), and re-bills an LLM call on every view until
+    # the nightly run. Best-effort, unlike the price backfill above: yfinance
+    # returning no news for a perfectly valid ticker is normal and is no reason to
+    # reject the holding. Naturally idempotent — adding twice in a day fetches once.
+    if not NewsItem.select().where(
+        NewsItem.ticker == ticker, NewsItem.fetched_date == today
+    ).exists():
+        with suppress(Exception):
+            refresh_news(ticker)
 
     holding = Holding.get_or_none(Holding.user == user, Holding.ticker == ticker)
 

@@ -12,7 +12,16 @@ import { AISummaryCard } from "./components/AISummaryCard";
 import { Logo } from "./components/Logo";
 
 function todayIso(): string {
-  return new Date().toISOString().slice(0, 10);
+  // Local date, deliberately not toISOString() — that returns UTC, and this app is
+  // anchored to SGT (the nightly cron runs 06:00 SGT, writing that day's news and
+  // summaries). Before 08:00 SGT, UTC is still on the previous day, so a UTC date
+  // would ask the API for yesterday's snapshot every morning. `<input type="date">`
+  // also emits local YYYY-MM-DD, so this keeps the initial value and any picked
+  // value in the same calendar.
+  const now = new Date();
+  const month = String(now.getMonth() + 1).padStart(2, "0");
+  const day = String(now.getDate()).padStart(2, "0");
+  return `${now.getFullYear()}-${month}-${day}`;
 }
 
 export default function App() {

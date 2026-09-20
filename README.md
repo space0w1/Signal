@@ -56,7 +56,27 @@ A self-hosted, single-page portfolio dashboard built for multi-market stock trac
 
 ## ⏰ Nightly Schedule (`GMT+8`)
 
-The system runs an automated cron process every morning between **06:00 AM and 07:00 AM SGT** (after US market close):
+The system runs an automated cron process every morning at **06:00 SGT** (after the US
+close, which lands at 04:00-05:00 SGT). It is a Kubernetes `CronJob` running the backend
+image with a batch entrypoint — `python -m app.jobs.nightly` — rather than an HTTP call,
+since a full run takes minutes. Steps, in order:
+
+| # | Step | Calls |
+| :-- | :--- | :--- |
+| 1 | FX rates | today's USD→SGD and HKD→SGD spot (upsert) |
+| 2 | Price history | last 5 trading days per active ticker (upsert, so a same-day intraday capture is corrected to the true close) |
+| 3 | News | top 5 articles per active ticker + `trafilatura` body extraction |
+| 4 | Summaries | one LLM call per ticker, plus one portfolio-level call |
+
+Steps 1-3 are mutually independent; step 4 must run last, since it reads all of them. A
+ticker whose price or news fetch failed is skipped in step 4 rather than having a
+degraded summary cached against the date. Set `SUMMARY_PREWARM=false` to skip step 4
+entirely and rely on `/api/summary`'s on-demand fallback.
+
+Both the CronJob and the backend Deployment set `TZ=Asia/Singapore`: `date.today()` keys
+`fx_rates`, `news_items.fetched_date` and `summaries.date`, and the image is otherwise
+UTC — a 06:00 SGT run is 22:00 UTC the previous day, which would file everything under
+yesterday.
 
 ---
 

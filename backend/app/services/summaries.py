@@ -46,7 +46,7 @@ def _generate(prompt: str, output_schema: type[BaseModel]) -> BaseModel:
         raise SummaryGenerationError(str(exc)) from exc
 
 
-def _generate_portfolio_summary(as_of: date) -> tuple[str, str, list[int]]:
+def _generate_portfolio_summary(as_of: date) -> tuple[str, str, list[int], bool]:
     portfolio = get_portfolio(as_of)
 
     news_items: list[NewsItem] = []
@@ -71,10 +71,10 @@ def _generate_portfolio_summary(as_of: date) -> tuple[str, str, list[int]]:
 
     result = _generate(prompt, PortfolioSummaryOutput)
     assert isinstance(result, PortfolioSummaryOutput)
-    return result.summary, result.next_steps, result.cited_news_ids
+    return result.summary, result.next_steps, result.cited_news_ids, bool(news_items)
 
 
-def _generate_stock_summary(ticker: str, as_of: date) -> tuple[str, str]:
+def _generate_stock_summary(ticker: str, as_of: date) -> tuple[str, str, bool]:
     portfolio = get_portfolio(as_of)
     holding = next((h for h in portfolio.holdings if h.ticker == ticker), None)
     news_items = get_news_for_date(ticker, as_of)
@@ -97,14 +97,31 @@ def _generate_stock_summary(ticker: str, as_of: date) -> tuple[str, str]:
 
     result = _generate(prompt, StockSummaryOutput)
     assert isinstance(result, StockSummaryOutput)
-    return result.summary, result.next_steps
+    return result.summary, result.next_steps, bool(news_items)
 
 
-def get_or_generate_summary(target_type: str, ticker: str, as_of: date) -> Summary:
+def get_or_generate_summary(
+    target_type: str, ticker: str, as_of: date, cache_without_news: bool = False
+) -> Summary:
     """target_type is 'portfolio' or 'stock'; ticker is ignored for
     'portfolio' (the sentinel is used instead). Checks the `summaries`
-    cache first; generates + persists on a miss (docs/api.md: on-demand
-    fallback) — the same pattern nightly cron will later pre-warm."""
+    cache first; generates on a miss (docs/api.md: on-demand fallback).
+
+    A Summary row is never overwritten, so the one case worth withholding from
+    the cache is a news-less summary for *today*: viewing it before the nightly
+    news fetch has run would pin a "(no recent news available)" answer to the
+    date permanently — the 06:00 cron would find that row, skip generation, and
+    the real summary would never be written. Returned unsaved, the date stays
+    open for the cron to fill properly.
+
+    Everything else is cached, because there is nothing better coming:
+      - news actually backed it (had_news)
+      - as_of is in the past — refresh_news only ever writes under date.today(),
+        so a past date's news set is frozen; withholding it would just re-bill an
+        LLM call on every visit to that date, forever
+      - cache_without_news, passed by the nightly job: it runs *after* the news
+        fetch, so an empty feed there means the ticker genuinely had no news today
+    """
     user = get_default_user()
     cache_key_ticker = PORTFOLIO_SENTINEL if target_type == "portfolio" else ticker
 
@@ -118,13 +135,13 @@ def get_or_generate_summary(target_type: str, ticker: str, as_of: date) -> Summa
         return cached
 
     if target_type == "portfolio":
-        summary_text, next_steps_text, cited_ids = _generate_portfolio_summary(as_of)
+        summary_text, next_steps_text, cited_ids, had_news = _generate_portfolio_summary(as_of)
         cited_json = json.dumps(cited_ids)
     else:
-        summary_text, next_steps_text = _generate_stock_summary(ticker, as_of)
+        summary_text, next_steps_text, had_news = _generate_stock_summary(ticker, as_of)
         cited_json = None
 
-    return Summary.create(
+    summary = Summary(
         user=user,
         target_type=target_type,
         ticker=cache_key_ticker,
@@ -134,3 +151,6 @@ def get_or_generate_summary(target_type: str, ticker: str, as_of: date) -> Summa
         cited_news_ids=cited_json,
         generated_at=datetime.utcnow(),
     )
+    if had_news or cache_without_news or as_of < date.today():
+        summary.save(force_insert=True)
+    return summary

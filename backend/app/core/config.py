@@ -11,6 +11,10 @@ class Settings(BaseSettings):
     gemini_api_key: str = ""
     gemini_model: str = "gemini-3.5-flash"
 
+    # Nightly job generates summaries ahead of time; set false to rely purely
+    # on the on-demand fallback in /api/summary (no LLM spend while idle).
+    summary_prewarm: bool = True
+
     class Config:
         env_file = ".env"
 

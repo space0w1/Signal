@@ -96,6 +96,11 @@ spec:
         ports:
         - containerPort: 8000
         env:
+        # date.today() drives fx_rates.date, news_items.fetched_date and
+        # summaries.date. The image is UTC, so without this a 06:00 SGT run
+        # (= 22:00 UTC the day before) would write everything under yesterday.
+        - name: TZ
+          value: "Asia/Singapore"
         - name: DATABASE_URL
           valueFrom:
             secretKeyRef:
@@ -166,3 +171,61 @@ spec:
       port: 80
       targetPort: 80
       nodePort: 30090 # Open access port for your desktop browser
+---
+# Nightly maintenance (README: "Nightly Schedule"). Runs the backend image with a
+# batch entrypoint instead of curling the API — a full run takes minutes (yfinance
+# + article downloads + an LLM call per ticker) and would outlive any HTTP timeout.
+# Jenkins' image-tag sed matches this line too, so it tracks the Deployment's tag.
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: signal-nightly
+  namespace: signal
+spec:
+  # 06:00 SGT is after the US close (16:00 ET == 04:00-05:00 SGT next day).
+  # timeZone needs k8s >= 1.27; on older clusters drop it and use "0 22 * * *" (UTC).
+  schedule: "0 6 * * *"
+  timeZone: "Asia/Singapore"
+  concurrencyPolicy: Forbid      # never let a slow run overlap the next one
+  startingDeadlineSeconds: 3600  # homelab node asleep at 06:00? still run, within the hour
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1            # safe to retry: every write is an upsert or cache hit
+      activeDeadlineSeconds: 3000
+      template:
+        spec:
+          restartPolicy: Never
+          containers:
+          - name: nightly
+            image: 192.168.2.100:30500/signal-backend:latest
+            imagePullPolicy: Never
+            command: ["python", "-m", "app.jobs.nightly"]
+            env:
+            # date.today() drives fx_rates.date, news_items.fetched_date and
+            # summaries.date. The image is UTC, so without this a 06:00 SGT run
+            # (= 22:00 UTC the day before) would write everything under yesterday.
+            - name: TZ
+              value: "Asia/Singapore"
+            - name: DATABASE_URL
+              valueFrom:
+                secretKeyRef:
+                  name: signal-secrets
+                  key: database-url
+            - name: LLM_PROVIDER
+              value: "gemini"
+            - name: GEMINI_MODEL
+              value: "gemini-3.5-flash"
+            - name: SUMMARY_PREWARM
+              value: "true"
+            - name: GEMINI_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: signal-secrets
+                  key: gemini-api-key
+            - name: ANTHROPIC_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: signal-secrets
+                  key: anthropic-api-key
