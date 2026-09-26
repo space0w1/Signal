@@ -38,18 +38,18 @@ export function StockGraphCard({ ticker, date }: Props) {
   const returnPoints = points.filter((p) => p.pnl_pct !== null);
 
   return (
-    <div className="flex h-80 flex-col rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+    <div className="flex h-80 flex-col rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 shadow-sm">
       <div className="mb-2 flex items-center justify-between">
-        <div className="text-sm font-medium text-gray-700">{ticker}</div>
-        <div className="flex rounded-lg bg-gray-100 p-1 text-xs font-medium">
+        <div className="text-sm font-medium text-gray-700 dark:text-gray-300">{ticker}</div>
+        <div className="flex rounded-lg bg-gray-100 dark:bg-gray-800 p-1 text-xs font-medium">
           <button
-            className={`rounded-md px-3 py-1 ${view === "price" ? "bg-white shadow-sm" : "text-gray-500"}`}
+            className={`rounded-md px-3 py-1 ${view === "price" ? "bg-white dark:bg-gray-900 shadow-sm dark:bg-gray-700 dark:text-gray-100" : "text-gray-500 dark:text-gray-400"}`}
             onClick={() => setView("price")}
           >
             Price
           </button>
           <button
-            className={`rounded-md px-3 py-1 ${view === "return" ? "bg-white shadow-sm" : "text-gray-500"}`}
+            className={`rounded-md px-3 py-1 ${view === "return" ? "bg-white dark:bg-gray-900 shadow-sm dark:bg-gray-700 dark:text-gray-100" : "text-gray-500 dark:text-gray-400"}`}
             onClick={() => setView("return")}
           >
             Return
@@ -58,12 +58,12 @@ export function StockGraphCard({ ticker, date }: Props) {
       </div>
 
       {loading && (
-        <div className="flex flex-1 items-center justify-center text-sm text-gray-400">Loading...</div>
+        <div className="flex flex-1 items-center justify-center text-sm text-gray-400 dark:text-gray-500">Loading...</div>
       )}
-      {error && <div className="flex flex-1 items-center justify-center text-sm text-red-600">{error}</div>}
+      {error && <div className="flex flex-1 items-center justify-center text-sm text-red-600 dark:text-red-400">{error}</div>}
 
       {!loading && !error && (
-        <div className="min-h-0 flex-1">
+        <div className="min-h-0 flex-1 text-gray-900 dark:text-gray-100">
           {view === "price" ? (
             <PriceChart points={points} currency={currency} />
           ) : (
@@ -78,7 +78,7 @@ export function StockGraphCard({ ticker, date }: Props) {
 function PriceChart({ points, currency }: { points: StockGraphPoint[]; currency: string }) {
   if (points.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center text-sm text-gray-400">
+      <div className="flex h-full items-center justify-center text-sm text-gray-400 dark:text-gray-500">
         No price data yet.
       </div>
     );
@@ -116,8 +116,8 @@ function ReturnTooltip({ active, payload, label }: TooltipContentProps) {
   if (!point) return null;
 
   return (
-    <div className="rounded-md border border-gray-200 bg-white px-3 py-2 text-xs shadow-sm">
-      <div className="font-medium text-gray-700">{label}</div>
+    <div className="rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-3 py-2 text-xs shadow-sm">
+      <div className="font-medium text-gray-700 dark:text-gray-300">{label}</div>
       {point.pnl_pct !== null && (
         <div className={`mt-1 font-medium ${pnlColorClass(point.pnl_pct)}`}>
           {point.pnl_pct.toFixed(2)}%
@@ -133,7 +133,7 @@ function ReturnTooltip({ active, payload, label }: TooltipContentProps) {
 function ReturnChart({ points }: { points: StockGraphPoint[] }) {
   if (points.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center text-sm text-gray-400">
+      <div className="flex h-full items-center justify-center text-sm text-gray-400 dark:text-gray-500">
         Not currently held — no return to show.
       </div>
     );

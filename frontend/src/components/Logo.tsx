@@ -14,11 +14,11 @@ function Candle({ color }: { color: string }) {
 
 export function Logo() {
   return (
-    <span className="text-xl font-semibold tracking-tight text-gray-900">
+    <span className="text-xl font-semibold tracking-tight text-gray-900 dark:text-gray-100">
       S
       <Candle color="#16a34a" />
       gna
-      <span className="text-red-600">l</span>
+      <span className="text-red-600 dark:text-red-400">l</span>
     </span>
   );
 }

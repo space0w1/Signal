@@ -130,22 +130,22 @@ export function ModifyPortfolioModal({ holdings, onClose, onChanged }: Props) {
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 dark:bg-black/60 p-4"
       onClick={onClose}
     >
       <div
-        className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-xl bg-white p-5 shadow-xl"
+        className="max-h-[85vh] w-full max-w-md overflow-y-auto rounded-xl bg-white dark:bg-gray-900 p-5 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-4 flex items-center justify-between">
           <h2 className="text-lg font-semibold">Modify Portfolio</h2>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600">
+          <button onClick={onClose} className="text-gray-400 dark:text-gray-500 hover:text-gray-600 dark:hover:text-gray-300">
             ✕
           </button>
         </div>
 
-        <form onSubmit={handleAdd} className="mb-5 space-y-2 rounded-lg border border-gray-200 p-3">
-          <div className="text-sm font-medium text-gray-700">Add Holding</div>
+        <form onSubmit={handleAdd} className="mb-5 space-y-2 rounded-lg border border-gray-200 dark:border-gray-700 p-3">
+          <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Add Holding</div>
           <div className="grid grid-cols-2 gap-2">
             {/* relative wrapper so the suggestion list can overlay the fields below
                 instead of pushing the rest of the form down as you type */}
@@ -165,23 +165,23 @@ export function ModifyPortfolioModal({ holdings, onClose, onChanged }: Props) {
                 onBlur={() => setTimeout(() => setShowMatches(false), 120)}
                 autoComplete="off"
                 required
-                className="w-full rounded-md border border-gray-200 px-2 py-1.5 text-sm"
+                className="w-full rounded-md border border-gray-200 dark:border-gray-700 px-2 py-1.5 text-sm"
               />
               {searching && (
-                <span className="absolute right-2 top-1.5 text-xs text-gray-400">…</span>
+                <span className="absolute right-2 top-1.5 text-xs text-gray-400 dark:text-gray-500">…</span>
               )}
               {showMatches && matches.length > 0 && (
-                <ul className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border border-gray-200 bg-white shadow-lg">
+                <ul className="absolute z-10 mt-1 w-full overflow-hidden rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 shadow-lg">
                   {matches.map((m) => (
                     <li key={`${m.symbol}-${m.exchange}`}>
                       <button
                         type="button"
                         onClick={() => pickMatch(m)}
-                        className="flex w-full items-baseline justify-between gap-2 px-2 py-1.5 text-left text-xs hover:bg-blue-50"
+                        className="flex w-full items-baseline justify-between gap-2 px-2 py-1.5 text-left text-xs hover:bg-blue-50 dark:hover:bg-blue-950"
                       >
-                        <span className="font-medium text-gray-800">{m.symbol}</span>
-                        <span className="min-w-0 flex-1 truncate text-gray-500">{m.name}</span>
-                        <span className="shrink-0 rounded bg-gray-100 px-1 text-gray-600">
+                        <span className="font-medium text-gray-800 dark:text-gray-200">{m.symbol}</span>
+                        <span className="min-w-0 flex-1 truncate text-gray-500 dark:text-gray-400">{m.name}</span>
+                        <span className="shrink-0 rounded bg-gray-100 dark:bg-gray-800 px-1 text-gray-600 dark:text-gray-400">
                           {m.region}
                         </span>
                       </button>
@@ -190,14 +190,14 @@ export function ModifyPortfolioModal({ holdings, onClose, onChanged }: Props) {
                 </ul>
               )}
               {showMatches && !searching && symbol.trim().length >= 2 && matches.length === 0 && (
-                <div className="absolute z-10 mt-1 w-full rounded-md border border-gray-200 bg-white px-2 py-1.5 text-xs text-gray-500 shadow-lg">
+                <div className="absolute z-10 mt-1 w-full rounded-md border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 px-2 py-1.5 text-xs text-gray-500 dark:text-gray-400 shadow-lg">
                   No US/HK/SG match — you can still type an exact ticker.
                 </div>
               )}
             </div>
-            <div className="flex items-center rounded-md border border-dashed border-gray-200 px-2 py-1.5 text-sm text-gray-500">
+            <div className="flex items-center rounded-md border border-dashed border-gray-200 dark:border-gray-700 px-2 py-1.5 text-sm text-gray-500 dark:text-gray-400">
               {pickedRegion ? (
-                <span className="font-medium text-gray-700">{pickedRegion}</span>
+                <span className="font-medium text-gray-700 dark:text-gray-300">{pickedRegion}</span>
               ) : (
                 <span className="text-xs">Market: auto</span>
               )}
@@ -210,7 +210,7 @@ export function ModifyPortfolioModal({ holdings, onClose, onChanged }: Props) {
               value={qty}
               onChange={(e) => setQty(e.target.value)}
               required
-              className="rounded-md border border-gray-200 px-2 py-1.5 text-sm"
+              className="rounded-md border border-gray-200 dark:border-gray-700 px-2 py-1.5 text-sm"
             />
             <input
               placeholder="Cost / share"
@@ -220,18 +220,18 @@ export function ModifyPortfolioModal({ holdings, onClose, onChanged }: Props) {
               value={cost}
               onChange={(e) => setCost(e.target.value)}
               required
-              className="rounded-md border border-gray-200 px-2 py-1.5 text-sm"
+              className="rounded-md border border-gray-200 dark:border-gray-700 px-2 py-1.5 text-sm"
             />
             <input
               type="date"
               value={purchaseDate}
               onChange={(e) => setPurchaseDate(e.target.value)}
               title="Purchase date (defaults to today)"
-              className="col-span-2 rounded-md border border-gray-200 px-2 py-1.5 text-sm text-gray-600"
+              className="col-span-2 rounded-md border border-gray-200 dark:border-gray-700 px-2 py-1.5 text-sm text-gray-600 dark:text-gray-400"
             />
           </div>
-          <div className="text-xs text-gray-400">Purchase date defaults to today if left blank.</div>
-          {addError && <div className="text-xs text-red-600">{addError}</div>}
+          <div className="text-xs text-gray-400 dark:text-gray-500">Purchase date defaults to today if left blank.</div>
+          {addError && <div className="text-xs text-red-600 dark:text-red-400">{addError}</div>}
           <button
             type="submit"
             disabled={addLoading}
@@ -241,13 +241,13 @@ export function ModifyPortfolioModal({ holdings, onClose, onChanged }: Props) {
           </button>
         </form>
 
-        <div className="mb-2 text-sm font-medium text-gray-700">Current Holdings</div>
+        <div className="mb-2 text-sm font-medium text-gray-700 dark:text-gray-300">Current Holdings</div>
         {holdings.length === 0 ? (
-          <div className="text-sm text-gray-400">No holdings yet.</div>
+          <div className="text-sm text-gray-400 dark:text-gray-500">No holdings yet.</div>
         ) : (
           <ul className="space-y-2">
             {holdings.map((h) => (
-              <li key={h.ticker} className="rounded-lg border border-gray-200 p-3">
+              <li key={h.ticker} className="rounded-lg border border-gray-200 dark:border-gray-700 p-3">
                 <button
                   className="flex w-full items-center justify-between text-left"
                   onClick={() => {
@@ -257,14 +257,14 @@ export function ModifyPortfolioModal({ holdings, onClose, onChanged }: Props) {
                 >
                   <div>
                     <div className="font-medium">{h.ticker}</div>
-                    <div className="text-xs text-gray-500">{h.quantity} sh held</div>
+                    <div className="text-xs text-gray-500 dark:text-gray-400">{h.quantity} sh held</div>
                   </div>
-                  <span className="text-xs text-blue-600">
+                  <span className="text-xs text-blue-600 dark:text-blue-400">
                     {sellTicker === h.ticker ? "Cancel" : "Sell"}
                   </span>
                 </button>
                 {sellTicker === h.ticker && (
-                  <div className="mt-3 space-y-2 border-t border-gray-100 pt-3">
+                  <div className="mt-3 space-y-2 border-t border-gray-100 dark:border-gray-800 pt-3">
                     <div className="grid grid-cols-2 gap-2">
                       <input
                         placeholder="Qty to sell"
@@ -273,7 +273,7 @@ export function ModifyPortfolioModal({ holdings, onClose, onChanged }: Props) {
                         min="0"
                         value={sellQty}
                         onChange={(e) => setSellQty(e.target.value)}
-                        className="rounded-md border border-gray-200 px-2 py-1.5 text-sm"
+                        className="rounded-md border border-gray-200 dark:border-gray-700 px-2 py-1.5 text-sm"
                       />
                       <input
                         placeholder="Sale price"
@@ -282,18 +282,18 @@ export function ModifyPortfolioModal({ holdings, onClose, onChanged }: Props) {
                         min="0"
                         value={sellPrice}
                         onChange={(e) => setSellPrice(e.target.value)}
-                        className="rounded-md border border-gray-200 px-2 py-1.5 text-sm"
+                        className="rounded-md border border-gray-200 dark:border-gray-700 px-2 py-1.5 text-sm"
                       />
                       <input
                         type="date"
                         value={sellDate}
                         onChange={(e) => setSellDate(e.target.value)}
                         title="Sale date (defaults to today)"
-                        className="col-span-2 rounded-md border border-gray-200 px-2 py-1.5 text-sm text-gray-600"
+                        className="col-span-2 rounded-md border border-gray-200 dark:border-gray-700 px-2 py-1.5 text-sm text-gray-600 dark:text-gray-400"
                       />
                     </div>
-                    <div className="text-xs text-gray-400">Sale date defaults to today if left blank.</div>
-                    {sellError && <div className="text-xs text-red-600">{sellError}</div>}
+                    <div className="text-xs text-gray-400 dark:text-gray-500">Sale date defaults to today if left blank.</div>
+                    {sellError && <div className="text-xs text-red-600 dark:text-red-400">{sellError}</div>}
                     <button
                       type="button"
                       disabled={sellLoading}

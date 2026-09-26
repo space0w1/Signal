@@ -48,18 +48,18 @@ export function PortfolioGraphCard({ date }: Props) {
   }, [date, mode]);
 
   return (
-    <div className="flex h-80 flex-col rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
+    <div className="flex h-80 flex-col rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 shadow-sm">
       <div className="mb-2 flex items-center justify-between">
-        <div className="text-sm font-medium text-gray-700">Portfolio Graph</div>
-        <div className="flex rounded-lg bg-gray-100 p-1 text-xs font-medium">
+        <div className="text-sm font-medium text-gray-700 dark:text-gray-300">Portfolio Graph</div>
+        <div className="flex rounded-lg bg-gray-100 dark:bg-gray-800 p-1 text-xs font-medium">
           <button
-            className={`rounded-md px-3 py-1 ${mode === "aggregate" ? "bg-white shadow-sm" : "text-gray-500"}`}
+            className={`rounded-md px-3 py-1 ${mode === "aggregate" ? "bg-white dark:bg-gray-900 shadow-sm dark:bg-gray-700 dark:text-gray-100" : "text-gray-500 dark:text-gray-400"}`}
             onClick={() => setMode("aggregate")}
           >
             Value
           </button>
           <button
-            className={`rounded-md px-3 py-1 ${mode === "overlay" ? "bg-white shadow-sm" : "text-gray-500"}`}
+            className={`rounded-md px-3 py-1 ${mode === "overlay" ? "bg-white dark:bg-gray-900 shadow-sm dark:bg-gray-700 dark:text-gray-100" : "text-gray-500 dark:text-gray-400"}`}
             onClick={() => setMode("overlay")}
           >
             Returns
@@ -67,11 +67,11 @@ export function PortfolioGraphCard({ date }: Props) {
         </div>
       </div>
 
-      {loading && <div className="flex flex-1 items-center justify-center text-sm text-gray-400">Loading...</div>}
-      {error && <div className="flex flex-1 items-center justify-center text-sm text-red-600">{error}</div>}
+      {loading && <div className="flex flex-1 items-center justify-center text-sm text-gray-400 dark:text-gray-500">Loading...</div>}
+      {error && <div className="flex flex-1 items-center justify-center text-sm text-red-600 dark:text-red-400">{error}</div>}
 
       {!loading && !error && (
-        <div className="min-h-0 flex-1">
+        <div className="min-h-0 flex-1 text-gray-900 dark:text-gray-100">
           {mode === "aggregate" ? (
             <AggregateChart points={aggregate} />
           ) : (
@@ -86,7 +86,7 @@ export function PortfolioGraphCard({ date }: Props) {
 function AggregateChart({ points }: { points: AggregatePoint[] }) {
   if (points.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center text-sm text-gray-400">
+      <div className="flex h-full items-center justify-center text-sm text-gray-400 dark:text-gray-500">
         No holdings yet.
       </div>
     );
@@ -154,7 +154,7 @@ function OverlayChart({
 
   if (tickers.length === 0 && portfolio.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center text-sm text-gray-400">
+      <div className="flex h-full items-center justify-center text-sm text-gray-400 dark:text-gray-500">
         No active holdings yet.
       </div>
     );
@@ -183,7 +183,7 @@ function OverlayChart({
         <Line
           type="monotone"
           dataKey={PORTFOLIO_LINE_KEY}
-          stroke="#111827"
+          stroke="currentColor"
           strokeWidth={3}
           dot={false}
           connectNulls={false}

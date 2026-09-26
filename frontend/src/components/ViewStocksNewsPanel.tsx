@@ -36,16 +36,16 @@ export function ViewStocksNewsPanel({ holdings, date }: Props) {
   }, [tab, date, tickersKey]);
 
   return (
-    <div className="flex flex-col rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
-      <div className="mb-3 flex rounded-lg bg-gray-100 p-1 text-sm font-medium">
+    <div className="flex flex-col rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-900 p-4 shadow-sm">
+      <div className="mb-3 flex rounded-lg bg-gray-100 dark:bg-gray-800 p-1 text-sm font-medium">
         <button
-          className={`flex-1 rounded-md py-1.5 ${tab === "news" ? "bg-white shadow-sm" : "text-gray-500"}`}
+          className={`flex-1 rounded-md py-1.5 ${tab === "news" ? "bg-white dark:bg-gray-900 shadow-sm dark:bg-gray-700 dark:text-gray-100" : "text-gray-500 dark:text-gray-400"}`}
           onClick={() => setTab("news")}
         >
           News
         </button>
         <button
-          className={`flex-1 rounded-md py-1.5 ${tab === "stocks" ? "bg-white shadow-sm" : "text-gray-500"}`}
+          className={`flex-1 rounded-md py-1.5 ${tab === "stocks" ? "bg-white dark:bg-gray-900 shadow-sm dark:bg-gray-700 dark:text-gray-100" : "text-gray-500 dark:text-gray-400"}`}
           onClick={() => setTab("stocks")}
         >
           View Stocks
@@ -55,20 +55,20 @@ export function ViewStocksNewsPanel({ holdings, date }: Props) {
       <div className="max-h-[430px] overflow-y-auto">
         {tab === "stocks" ? (
           holdings.length === 0 ? (
-            <div className="text-sm text-gray-400">No holdings yet.</div>
+            <div className="text-sm text-gray-400 dark:text-gray-500">No holdings yet.</div>
           ) : (
             <ul className="space-y-2">
               {holdings.map((h) => {
                 const totalPnl = h.unrealized_pnl_amount + h.realized_pnl_sgd;
                 return (
-                  <li key={h.ticker} className="rounded-lg border border-gray-100 px-3 py-2">
+                  <li key={h.ticker} className="rounded-lg border border-gray-100 dark:border-gray-800 px-3 py-2">
                     <div className="flex items-center justify-between">
                       <span className="font-medium">{h.ticker}</span>
                       <span className={`text-sm font-medium ${pnlColorClass(totalPnl)}`}>
                         {formatMoney(totalPnl)}
                       </span>
                     </div>
-                    <div className="mt-0.5 text-xs text-gray-500">
+                    <div className="mt-0.5 text-xs text-gray-500 dark:text-gray-400">
                       {h.quantity} sh @ {formatMoney(h.price, h.currency)}
                     </div>
                   </li>
@@ -77,9 +77,9 @@ export function ViewStocksNewsPanel({ holdings, date }: Props) {
             </ul>
           )
         ) : newsLoading ? (
-          <div className="text-sm text-gray-400">Loading...</div>
+          <div className="text-sm text-gray-400 dark:text-gray-500">Loading...</div>
         ) : newsError ? (
-          <div className="text-sm text-red-600">{newsError}</div>
+          <div className="text-sm text-red-600 dark:text-red-400">{newsError}</div>
         ) : (
           <NewsList
             items={news}

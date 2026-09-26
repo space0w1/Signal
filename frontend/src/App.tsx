@@ -62,8 +62,8 @@ export default function App() {
         onModifyClick={() => setModalOpen(true)}
       />
 
-      {loading && <div className="text-sm text-gray-500">Loading...</div>}
-      {error && <div className="text-sm text-red-600">{error}</div>}
+      {loading && <div className="text-sm text-gray-500 dark:text-gray-400">Loading...</div>}
+      {error && <div className="text-sm text-red-600 dark:text-red-400">{error}</div>}
 
       {!loading && !error && portfolio && (
         selected === PORTFOLIO_OPTION ? (

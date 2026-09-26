@@ -12,9 +12,9 @@ export function formatPercent(value: number): string {
 }
 
 export function pnlColorClass(value: number): string {
-  if (value > 0) return "text-emerald-600";
-  if (value < 0) return "text-red-600";
-  return "text-gray-500";
+  if (value > 0) return "text-emerald-600 dark:text-emerald-400";
+  if (value < 0) return "text-red-600 dark:text-red-400";
+  return "text-gray-500 dark:text-gray-400";
 }
 
 export function formatRelativeTime(isoString: string): string {

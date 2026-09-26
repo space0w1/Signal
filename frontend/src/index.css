@@ -1,8 +1,15 @@
 @import "tailwindcss";
 
+/* Dark mode is driven by a `dark` class on <html> (set in index.html / theme.ts), not the media query. */
+@custom-variant dark (&:where(.dark, .dark *));
+
 :root {
   font-family: system-ui, Avenir, Helvetica, Arial, sans-serif;
   color-scheme: light;
+}
+
+:root.dark {
+  color-scheme: dark;
 }
 
 body {
@@ -10,4 +17,32 @@ body {
   min-height: 100vh;
   background-color: #f5f6f8;
   color: #1a1d29;
+}
+
+.dark body {
+  background-color: #0b0d12;
+  color: #e5e7eb;
+}
+
+/* Recharts sets these colors as SVG attributes / inline styles; CSS wins over attributes, inline styles need !important. */
+.dark .recharts-cartesian-grid-horizontal line {
+  stroke: var(--color-gray-800);
+}
+
+.dark .recharts-cartesian-axis-line,
+.dark .recharts-cartesian-axis-tick-line {
+  stroke: var(--color-gray-600);
+}
+
+.dark .recharts-cartesian-axis-tick-value {
+  fill: var(--color-gray-400);
+}
+
+.dark .recharts-tooltip-cursor {
+  stroke: var(--color-gray-600);
+}
+
+.dark .recharts-default-tooltip {
+  background-color: var(--color-gray-800) !important;
+  border-color: var(--color-gray-700) !important;
 }
