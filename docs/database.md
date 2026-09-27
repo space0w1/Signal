@@ -110,6 +110,23 @@ PRIMARY KEY (date, currency_pair)
 );
 
 -- ============================================================
+-- world_market_prices
+-- Daily close per world-market index/ETF for the World page
+-- (the market list is MARKETS in services/world_markets.py).
+-- 2 years synced the first time a symbol is seen, then the last
+-- few days upserted nightly / via POST /api/world/markets/refresh.
+-- Separate from price_history on purpose: some of these are ETFs
+-- that could also be held, and rows here must not make
+-- add_holding() think such a ticker was already backfilled.
+-- ============================================================
+CREATE TABLE world_market_prices (
+symbol TEXT NOT NULL,            -- Yahoo symbol, e.g. '^GSPC', 'THD'
+date   DATE NOT NULL,
+close  DOUBLE PRECISION NOT NULL,
+PRIMARY KEY (symbol, date)
+);
+
+-- ============================================================
 -- news_items
 -- Raw news per ticker, fetched via yfinance's `.news`. fetched_date
 -- ties each batch to the day it came in — the SAME article can

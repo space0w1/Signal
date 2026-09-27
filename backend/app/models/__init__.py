@@ -5,8 +5,9 @@ from app.models.price_history import PriceHistory
 from app.models.summary import Summary
 from app.models.transaction import Transaction
 from app.models.user import User
+from app.models.world_market_price import WorldMarketPrice
 
-ALL_MODELS = [User, Holding, Transaction, PriceHistory, FxRate, NewsItem, Summary]
+ALL_MODELS = [User, Holding, Transaction, PriceHistory, FxRate, NewsItem, Summary, WorldMarketPrice]
 
 __all__ = [
     "User",
@@ -16,5 +17,6 @@ __all__ = [
     "FxRate",
     "NewsItem",
     "Summary",
+    "WorldMarketPrice",
     "ALL_MODELS",
 ]

@@ -66,6 +66,13 @@ Bound to your Tailscale interface only. No auth (single user, Tailscale gates ac
 
 | POST | `/api/price-history/<ticker>/refresh` | — | Cheap nightly counterpart to `backfill`: fetches the last 5 **trading** days and upserts, *overwriting* `close_price` where a row already exists. The 5-day window covers weekends, exchange holidays and a skipped cron run, so small gaps self-heal without a separate repair path; the overwrite is what corrects a same-day `backfill` that captured an intraday price as if it were the close. Beyond 5 trading days nothing recovers automatically — use `backfill` for a wider hole. The ticker must already be tracked (the currency is read from its existing rows); 422 otherwise. Called once per active ticker by the nightly job. Note `rows_inserted` counts rows *fetched and upserted*, not newly inserted, so it reads 5 every night regardless of what changed. |
 
+### World Markets
+
+| Method | Path | Query params | Returns |
+|---|---|---|---|
+| GET | `/api/world/markets` | — | One headline stock market per country (46 markets), each as `{ country, iso_n3, symbol, index_name, currency, kind, lat, lng, last_close, as_of, change_1d, change_1w, change_1m, change_ytd, stale }`. Powers the World page's globe. `kind` is `index` for a country's own index (changes in local currency) or `etf` where Yahoo has no history for the local index and a US-listed country ETF stands in (in USD). Changes are % vs 1, 5 and 21 trading sessions earlier, and YTD vs the previous year's last close; `null` when there isn't enough history. `stale` is true when the last close is more than 7 days old. `iso_n3` is the ISO 3166-1 numeric code, matching the frontend map's country ids; `lat`/`lng` are an approximate country centre. Reads stored closes from `world_market_prices` — no Yahoo call per request — except on the very first load, when the table is empty and it syncs once first. 502 if that first sync gets nothing from Yahoo. |
+| POST | `/api/world/markets/refresh` | — | Fetches the latest closes from Yahoo and upserts them into `world_market_prices`: 2 years for a market never synced before, otherwise only the last 7 days before its latest stored close (so a close first captured intraday is corrected). Returns `{ rows_written }`. The nightly job runs the same sync as its `world-markets` step. 502 if Yahoo returns nothing for any market. |
+
 ### Health
 
 | Method | Path | Query params | Returns |
