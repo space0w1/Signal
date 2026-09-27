@@ -14,3 +14,7 @@ frontend/dist/
 # IDE
 .idea/
 .vscode/
+
+# Research
+research/data/
+.ipynb_checkpoints/
