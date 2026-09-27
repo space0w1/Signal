@@ -180,3 +180,27 @@ export function sellHolding(
 export function searchSymbols(q: string, signal?: AbortSignal): Promise<SymbolMatch[]> {
   return request<SymbolMatch[]>(`/symbols/search?q=${encodeURIComponent(q)}`, { signal });
 }
+
+export type WorldPeriod = "change_1d" | "change_1w" | "change_1m" | "change_ytd";
+
+export interface WorldMarket {
+  country: string;
+  iso_n3: string;
+  symbol: string;
+  index_name: string;
+  currency: string;
+  kind: "index" | "etf";
+  lat: number;
+  lng: number;
+  last_close: number | null;
+  as_of: string | null;
+  change_1d: number | null;
+  change_1w: number | null;
+  change_1m: number | null;
+  change_ytd: number | null;
+  stale: boolean;
+}
+
+export function getWorldMarkets(): Promise<WorldMarket[]> {
+  return request<WorldMarket[]>("/world/markets");
+}

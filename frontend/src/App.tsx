@@ -1,105 +1,73 @@
-import { useCallback, useEffect, useState } from "react";
-import { getPortfolio, type Portfolio } from "./api/client";
-import { TopBar, PORTFOLIO_OPTION } from "./components/TopBar";
-import { PortfolioSummaryCard } from "./components/PortfolioSummaryCard";
-import { ViewStocksNewsPanel } from "./components/ViewStocksNewsPanel";
-import { ModifyPortfolioModal } from "./components/ModifyPortfolioModal";
-import { PortfolioGraphCard } from "./components/PortfolioGraphCard";
-import { StockGraphCard } from "./components/StockGraphCard";
-import { StockPnLCard } from "./components/StockPnLCard";
-import { StockNewsPanel } from "./components/StockNewsPanel";
-import { AISummaryCard } from "./components/AISummaryCard";
+import { lazy, Suspense, useEffect, useState } from "react";
 import { Logo } from "./components/Logo";
+import { PortfolioPage } from "./pages/PortfolioPage";
+import { useTheme } from "./theme";
 
-function todayIso(): string {
-  // Local date, deliberately not toISOString() — that returns UTC, and this app is
-  // anchored to SGT (the nightly cron runs 06:00 SGT, writing that day's news and
-  // summaries). Before 08:00 SGT, UTC is still on the previous day, so a UTC date
-  // would ask the API for yesterday's snapshot every morning. `<input type="date">`
-  // also emits local YYYY-MM-DD, so this keeps the initial value and any picked
-  // value in the same calendar.
-  const now = new Date();
-  const month = String(now.getMonth() + 1).padStart(2, "0");
-  const day = String(now.getDate()).padStart(2, "0");
-  return `${now.getFullYear()}-${month}-${day}`;
+// Loaded on first visit: the globe pulls in three.js, which the portfolio page doesn't need.
+const WorldPage = lazy(() => import("./pages/WorldPage"));
+
+type Page = "portfolio" | "world";
+
+const NAV: { page: Page; label: string; hash: string }[] = [
+  { page: "portfolio", label: "Portfolio", hash: "#/" },
+  { page: "world", label: "World", hash: "#/world" },
+];
+
+// Hash-based so the back button and bookmarks work without a router dependency.
+function pageFromHash(): Page {
+  return window.location.hash === "#/world" ? "world" : "portfolio";
 }
 
 export default function App() {
-  const [selected, setSelected] = useState(PORTFOLIO_OPTION);
-  const [date, setDate] = useState(todayIso());
-  const [portfolio, setPortfolio] = useState<Portfolio | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
-  const [modalOpen, setModalOpen] = useState(false);
-
-  const refresh = useCallback(() => {
-    setLoading(true);
-    setError(null);
-    getPortfolio(date)
-      .then(setPortfolio)
-      .catch((err) => setError(err instanceof Error ? err.message : "Failed to load portfolio"))
-      .finally(() => setLoading(false));
-  }, [date]);
+  const [page, setPage] = useState<Page>(pageFromHash);
+  const [theme, toggleTheme] = useTheme();
 
   useEffect(() => {
-    refresh();
-  }, [refresh]);
-
-  const tickers = portfolio?.holdings.map((h) => h.ticker) ?? [];
+    const onHashChange = () => setPage(pageFromHash());
+    window.addEventListener("hashchange", onHashChange);
+    return () => window.removeEventListener("hashchange", onHashChange);
+  }, []);
 
   return (
     <div className="mx-auto max-w-6xl p-6">
-      <h1 className="mb-4">
-        <Logo />
-      </h1>
+      <header className="mb-4 flex items-center justify-between">
+        <h1>
+          <Logo />
+        </h1>
+        <div className="flex items-center gap-3">
+          <nav className="flex rounded-lg bg-gray-100 p-1 text-sm font-medium dark:bg-gray-800">
+            {NAV.map((item) => (
+              <a
+                key={item.page}
+                href={item.hash}
+                aria-current={page === item.page ? "page" : undefined}
+                className={`rounded-md px-3 py-1 ${
+                  page === item.page
+                    ? "bg-white shadow-sm dark:bg-gray-700 dark:text-gray-100"
+                    : "text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200"
+                }`}
+              >
+                {item.label}
+              </a>
+            ))}
+          </nav>
+          <button
+            onClick={toggleTheme}
+            aria-label={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            title={theme === "dark" ? "Switch to light mode" : "Switch to dark mode"}
+            className="rounded-lg border border-gray-200 bg-white px-3 py-2 text-sm shadow-sm hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 dark:border-gray-700 dark:bg-gray-900 dark:hover:bg-gray-800"
+          >
+            {theme === "dark" ? "☀️" : "🌙"}
+          </button>
+        </div>
+      </header>
 
-      <TopBar
-        tickers={tickers}
-        selected={selected}
-        onSelectedChange={setSelected}
-        date={date}
-        onDateChange={setDate}
-        onModifyClick={() => setModalOpen(true)}
-      />
-
-      {loading && <div className="text-sm text-gray-500 dark:text-gray-400">Loading...</div>}
-      {error && <div className="text-sm text-red-600 dark:text-red-400">{error}</div>}
-
-      {!loading && !error && portfolio && (
-        selected === PORTFOLIO_OPTION ? (
-          <div className="grid grid-cols-3 gap-4">
-            <div className="col-span-2 flex flex-col gap-4">
-              <PortfolioGraphCard date={date} />
-              <AISummaryCard target="portfolio" date={date} />
-            </div>
-            <div className="flex flex-col gap-4">
-              <PortfolioSummaryCard portfolio={portfolio} />
-              <ViewStocksNewsPanel holdings={portfolio.holdings} date={date} />
-            </div>
-          </div>
-        ) : (
-          <div className="grid grid-cols-3 gap-4">
-            <div className="col-span-2 flex flex-col gap-4">
-              <StockGraphCard ticker={selected} date={date} />
-              <AISummaryCard target={selected} date={date} />
-            </div>
-            <div className="flex flex-col gap-4">
-              <StockPnLCard
-                ticker={selected}
-                holding={portfolio.holdings.find((h) => h.ticker === selected)}
-              />
-              <StockNewsPanel ticker={selected} date={date} />
-            </div>
-          </div>
-        )
-      )}
-
-      {modalOpen && (
-        <ModifyPortfolioModal
-          holdings={portfolio?.holdings ?? []}
-          onClose={() => setModalOpen(false)}
-          onChanged={refresh}
-        />
+      {page === "portfolio" ? (
+        <PortfolioPage />
+      ) : (
+        <Suspense fallback={<div className="text-sm text-gray-500 dark:text-gray-400">Loading...</div>}>
+          <WorldPage theme={theme} />
+        </Suspense>
       )}
     </div>
   );

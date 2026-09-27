@@ -3,7 +3,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.routes import fx, graph, health, holdings, news, portfolio, summary, symbols
+from app.api.routes import fx, graph, health, holdings, news, portfolio, summary, symbols, world
 from app.core.config import settings
 from app.db import database, init_db
 
@@ -43,3 +43,4 @@ app.include_router(graph.router, prefix="/api")
 app.include_router(news.router, prefix="/api")
 app.include_router(summary.router, prefix="/api")
 app.include_router(symbols.router, prefix="/api")
+app.include_router(world.router, prefix="/api")
