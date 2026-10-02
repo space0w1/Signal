@@ -65,7 +65,7 @@ since a full run takes minutes. Steps, in order:
 | :-- | :--- | :--- |
 | 1 | FX rates | today's USD→SGD and HKD→SGD spot (upsert) |
 | 2 | Price history | last 5 trading days per active ticker (upsert, so a same-day intraday capture is corrected to the true close) |
-| 3 | News | top 5 articles per active ticker + `trafilatura` body extraction |
+| 3 | News | top 5 articles per active ticker + `trafilatura` body extraction (yfinance first; if short of 5, topped up from Yahoo's RSS feed, then from earlier fetches' articles published in the last 3 days) |
 | 4 | Summaries | one LLM call per ticker, plus one portfolio-level call |
 
 Steps 1-3 are mutually independent; step 4 must run last, since it reads all of them. A

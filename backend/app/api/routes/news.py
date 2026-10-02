@@ -1,9 +1,9 @@
 from datetime import date, datetime
 
-from fastapi import APIRouter, Query
+from fastapi import APIRouter, HTTPException, Query
 from pydantic import BaseModel, ConfigDict
 
-from app.services.news import get_news_for_date, refresh_news
+from app.services.news import NewsUnavailableError, get_news_for_date, refresh_news
 
 router = APIRouter(tags=["news"])
 
@@ -39,5 +39,8 @@ def news_for_stock(
 @router.post("/news/{ticker}/refresh", response_model=NewsRefreshResponse)
 def trigger_news_refresh(ticker: str) -> NewsRefreshResponse:
     ticker = ticker.upper()
-    rows_inserted = refresh_news(ticker)
+    try:
+        rows_inserted = refresh_news(ticker)
+    except NewsUnavailableError as exc:
+        raise HTTPException(status_code=502, detail=str(exc)) from exc
     return NewsRefreshResponse(ticker=ticker, rows_inserted=rows_inserted)
