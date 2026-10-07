@@ -5,17 +5,19 @@ import { useTheme } from "./theme";
 
 // Loaded on first visit: the globe pulls in three.js, which the portfolio page doesn't need.
 const WorldPage = lazy(() => import("./pages/WorldPage"));
+const SectorsPage = lazy(() => import("./pages/SectorsPage"));
 
-type Page = "portfolio" | "world";
+type Page = "portfolio" | "world" | "sectors";
 
 const NAV: { page: Page; label: string; hash: string }[] = [
   { page: "portfolio", label: "Portfolio", hash: "#/" },
   { page: "world", label: "World", hash: "#/world" },
+  { page: "sectors", label: "Sectors", hash: "#/sectors" },
 ];
 
 // Hash-based so the back button and bookmarks work without a router dependency.
 function pageFromHash(): Page {
-  return window.location.hash === "#/world" ? "world" : "portfolio";
+  return NAV.find((item) => item.hash === window.location.hash)?.page ?? "portfolio";
 }
 
 export default function App() {
@@ -66,7 +68,7 @@ export default function App() {
         <PortfolioPage />
       ) : (
         <Suspense fallback={<div className="text-sm text-gray-500 dark:text-gray-400">Loading...</div>}>
-          <WorldPage theme={theme} />
+          {page === "world" ? <WorldPage theme={theme} /> : <SectorsPage theme={theme} />}
         </Suspense>
       )}
     </div>
