@@ -11,6 +11,14 @@ export function formatPercent(value: number): string {
   return `${sign}${value.toFixed(2)}%`;
 }
 
+// Compact USD for fund sizes and flows: "$1.52B", "-$640M"; signed adds "+" to gains.
+export function formatUsdCompact(value: number, signed = false): string {
+  const abs = Math.abs(value);
+  const [div, unit] = abs >= 1e9 ? [1e9, "B"] : abs >= 1e6 ? [1e6, "M"] : abs >= 1e3 ? [1e3, "K"] : [1, ""];
+  const sign = value < 0 ? "-" : signed && value > 0 ? "+" : "";
+  return `${sign}$${(abs / div).toFixed(abs >= 1e9 ? 2 : 0)}${unit}`;
+}
+
 export function pnlColorClass(value: number): string {
   if (value > 0) return "text-emerald-600 dark:text-emerald-400";
   if (value < 0) return "text-red-600 dark:text-red-400";

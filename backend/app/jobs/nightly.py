@@ -23,6 +23,7 @@ from app.services.fx import refresh_fx_rates
 from app.services.holdings import list_tracked_tickers
 from app.services.market_data import refresh_price_history
 from app.services.news import refresh_news
+from app.services.sector_flows import sync_sector_flows
 from app.services.summaries import get_or_generate_summary
 from app.services.world_markets import sync_world_markets
 
@@ -73,6 +74,8 @@ def run_nightly(as_of: date | None = None) -> int:
     fx_ok = _step(failures, "fx-rates", refresh_fx_rates)
     # World page data; independent of the portfolio, nothing below reads it.
     _step(failures, "world-markets", sync_world_markets)
+    # Sectors page data; likewise independent.
+    _step(failures, "sector-flows", sync_sector_flows)
 
     stale: set[str] = set()
     for ticker in tickers:

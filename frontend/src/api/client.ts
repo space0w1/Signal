@@ -204,3 +204,35 @@ export interface WorldMarket {
 export function getWorldMarkets(): Promise<WorldMarket[]> {
   return request<WorldMarket[]>("/world/markets");
 }
+
+export type SectorPeriod = "1d" | "1w" | "1m" | "ytd";
+
+export interface SectorPeriodStats {
+  flow: number | null; // net USD in (+) / out (-)
+  flow_pct: number | null; // flow as % of the fund's assets at the start of the period
+  change: number | null; // NAV % change
+}
+
+export interface SectorFlow {
+  symbol: string;
+  name: string;
+  group: "growth" | "cyclical" | "defensive" | "rates";
+  as_of: string | null;
+  nav: number | null;
+  total_net_assets: number | null;
+  periods: Record<SectorPeriod, SectorPeriodStats>;
+  stale: boolean;
+}
+
+export interface SectorFlowPoint {
+  date: string;
+  cumulative_flow: number;
+}
+
+export function getSectorFlows(): Promise<SectorFlow[]> {
+  return request<SectorFlow[]>("/sectors/flows");
+}
+
+export function getSectorFlowHistory(symbol: string): Promise<SectorFlowPoint[]> {
+  return request<SectorFlowPoint[]>(`/sectors/flows/${encodeURIComponent(symbol)}/history`);
+}

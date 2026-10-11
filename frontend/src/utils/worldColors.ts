@@ -24,9 +24,15 @@ export function palette(dark: boolean) {
 }
 
 export function changeColor(change: number | null, period: WorldPeriod, dark: boolean): string {
-  const { neutral, untracked } = palette(dark);
+  const { untracked } = palette(dark);
   if (change === null) return untracked;
-  const t = Math.max(-1, Math.min(1, change / COLOR_SCALE[period]));
+  return divergingColor(change / COLOR_SCALE[period], dark);
+}
+
+// t in [-1, 1] (clamped): red through neutral grey to green. Shared with the Sectors page.
+export function divergingColor(t: number, dark: boolean): string {
+  const { neutral } = palette(dark);
+  t = Math.max(-1, Math.min(1, t));
   const target = t >= 0 ? UP : DOWN;
   const [r, g, b] = neutral.map((n, i) => Math.round(n + (target[i] - n) * Math.abs(t)));
   return `rgb(${r}, ${g}, ${b})`;

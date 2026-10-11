@@ -1,10 +1,10 @@
-# 📈 Stock Portfolio Tracker
+# Stock Portfolio Tracker
 
 A self-hosted, single-page portfolio dashboard built for multi-market stock tracking (US, HK, SG). Designed for local-first deployment and secured via **Tailscale** access controls with automated nightly LLM summaries.
 
 ---
 
-## ✨ Features
+## Features
 
 - **Multi-Currency Support**: Native display in **SGD**, automatically converting USD and HKD holdings using daily cached FX rates.
 - **Dynamic Time Travel**: View full portfolio snapshots for any past date using the interactive date picker.
@@ -15,7 +15,7 @@ A self-hosted, single-page portfolio dashboard built for multi-market stock trac
 
 ---
 
-## 🏗️ Architecture & Stack
+## Architecture & Stack
 
 | Component | Choice / Technology |
 | :--- | :--- |
@@ -26,7 +26,7 @@ A self-hosted, single-page portfolio dashboard built for multi-market stock trac
 
 ---
 
-## 📊 Core Functional Modules
+## Core Functional Modules
 
 ### 1. Navigation & State
 * **Selector Dropdown**: Switch between **Portfolio** aggregate mode or an **Individual Ticker**.
@@ -54,7 +54,7 @@ A self-hosted, single-page portfolio dashboard built for multi-market stock trac
 
 ---
 
-## ⏰ Nightly Schedule (`GMT+8`)
+## Nightly Schedule (`GMT+8`)
 
 The system runs an automated cron process every morning at **06:00 SGT** (after the US
 close, which lands at 04:00-05:00 SGT). It is a Kubernetes `CronJob` running the backend
@@ -80,7 +80,7 @@ yesterday.
 
 ---
 
-## 🗂️ Project Structure
+## Project Structure
 
 ```
 .
@@ -103,7 +103,7 @@ yesterday.
 └── docker-compose.yml
 ```
 
-## 🚀 Running locally
+## Running locally
 
 ```bash
 docker compose up --build

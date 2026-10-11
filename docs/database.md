@@ -127,6 +127,24 @@ PRIMARY KEY (symbol, date)
 );
 
 -- ============================================================
+-- sector_fund_days
+-- Daily NAV and shares outstanding per US sector ETF for the
+-- Sectors page (the list is SECTORS in services/sector_flows.py),
+-- from State Street's NAV history files. Net flow is derived
+-- from day-to-day share changes, so no close price is stored.
+-- 2 years synced the first time a fund is seen, then the last
+-- few days upserted nightly / via POST /api/sectors/flows/refresh.
+-- ============================================================
+CREATE TABLE sector_fund_days (
+symbol           TEXT NOT NULL,             -- e.g. 'XLK'
+date             DATE NOT NULL,
+nav              DOUBLE PRECISION NOT NULL, -- per share, USD
+shares           DOUBLE PRECISION NOT NULL, -- shares outstanding
+total_net_assets DOUBLE PRECISION NOT NULL, -- USD
+PRIMARY KEY (symbol, date)
+);
+
+-- ============================================================
 -- news_items
 -- Raw news per ticker, fetched via yfinance's `.news`. fetched_date
 -- ties each batch to the day it came in — the SAME article can

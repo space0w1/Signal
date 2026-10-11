@@ -124,7 +124,7 @@ spec:
 apiVersion: v1
 kind: Service
 metadata:
-  # Named "backend" to match nginx.conf's proxy_pass target
+  # Named "backend" to match BACKEND_HOST in the frontend deployment
   name: backend
   namespace: signal
 spec:
@@ -154,6 +154,10 @@ spec:
       - name: frontend
         image: 192.168.2.100:30500/signal-frontend:latest
         imagePullPolicy: Never
+        env:
+        # nginx's resolver ignores resolv.conf search domains, so use the FQDN
+        - name: BACKEND_HOST
+          value: "backend.signal.svc.cluster.local"
         ports:
         - containerPort: 80
 ---
