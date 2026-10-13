@@ -59,7 +59,9 @@ def backfill_price_history(ticker: str) -> tuple[int, str, str]:
     (wrong suffix, delisted, typo) or UnsupportedMarketError if it trades in a currency
     the app cannot convert to SGD."""
     stock = yf.Ticker(ticker)
-    hist = stock.history(period="5y")
+    # Yahoo can return a NaN close (typically today's not-yet-settled row); storing
+    # it poisons every later read, since NaN isn't JSON-serializable.
+    hist = stock.history(period="5y").dropna(subset=["Close"])
 
     if hist.empty:
         raise UnknownTickerError(f"No price data found for ticker '{ticker}'")
@@ -99,7 +101,7 @@ def refresh_price_history(ticker: str) -> int:
     currency = existing.currency
 
     stock = yf.Ticker(ticker)
-    hist = stock.history(period="5d")
+    hist = stock.history(period="5d").dropna(subset=["Close"])  # see backfill_price_history
 
     if hist.empty:
         raise UnknownTickerError(f"No price data found for ticker '{ticker}'")

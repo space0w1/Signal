@@ -1,3 +1,4 @@
+import math
 from datetime import date
 
 import yfinance as yf
@@ -17,7 +18,7 @@ def fetch_fx_rate(currency_pair: str) -> float:
     ticker = f"{currency_pair}=X"
     info = yf.Ticker(ticker).info
     rate = info.get("regularMarketPrice")
-    if rate is None:
+    if rate is None or math.isnan(rate):
         raise FxRateUnavailableError(f"No FX rate available for '{currency_pair}'")
     return float(rate)
 
@@ -45,7 +46,7 @@ def backfill_fx_rates() -> dict[str, int]:
     rows_inserted: dict[str, int] = {}
     for pair in FX_PAIRS:
         ticker = f"{pair}=X"
-        hist = yf.Ticker(ticker).history(period="5y")
+        hist = yf.Ticker(ticker).history(period="5y").dropna(subset=["Close"])
 
         if hist.empty:
             raise FxRateUnavailableError(f"No historical FX data found for '{pair}'")
